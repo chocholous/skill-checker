@@ -1,0 +1,45 @@
+# Dispatcher Common Scenarios — test apify-ultimate-scraper (superset skill)
+# These prompts test the skill's ability to handle common dispatcher patterns
+
+target_skill: apify-ultimate-scraper
+
+scenarios:
+  - id: dc-1
+    name: "Basic single-actor run"
+    prompt: "Scrape top 10 Instagram posts for Nike"
+    expected_complexities:
+      - CAT-1   # ${CLAUDE_PLUGIN_ROOT} undefined
+      - CAT-2   # Dynamic schema via mcpc
+      - CAT-7   # mcpc not installed by default
+
+  - id: dc-2
+    name: "Multi-actor chain"
+    prompt: "Find the top 20 restaurants in Prague on Google Maps, then scrape their TripAdvisor reviews"
+    expected_complexities:
+      - CAT-1   # ${CLAUDE_PLUGIN_ROOT} undefined
+      - CAT-2   # Dynamic schema via mcpc
+      - CAT-4   # No parallel actor guidance
+      - CAT-7   # mcpc not installed by default
+
+  - id: dc-3
+    name: "Resource limits"
+    prompt: "Scrape 50,000 TikTok videos about AI trends"
+    expected_complexities:
+      - CAT-1   # ${CLAUDE_PLUGIN_ROOT} undefined
+      - CAT-3   # No resource management (--memory, concurrency)
+      - CAT-6   # No input validation (extreme volume)
+
+  - id: dc-4
+    name: "Missing prerequisites"
+    prompt: "Show me all Facebook ads that Coca-Cola is currently running. I have a clean environment with no tools installed."
+    expected_complexities:
+      - CAT-1   # ${CLAUDE_PLUGIN_ROOT} undefined
+      - CAT-7   # mcpc not installed by default
+      - CAT-8   # Token extraction anti-pattern
+
+  - id: dc-5
+    name: "Ambiguous multi-skill"
+    prompt: "I need to understand how Nike is performing on social media compared to Adidas — engagement, sentiment, influencer partnerships, and ad spend"
+    expected_complexities:
+      - CAT-4   # No parallel actor guidance
+      - CAT-5   # Actor duplicity across skills
