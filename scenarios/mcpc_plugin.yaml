@@ -1,0 +1,116 @@
+# apify-mcpc plugin Scenarios — test domain-specific use cases and boundary handling
+
+target_skill: apify-mcpc
+
+scenarios:
+  - id: mp-1
+    name: "Audience analysis — inferred demographics + budget"
+    prompt: "Analyze the audience demographics and engagement quality of @nike on Instagram — I need a CSV with follower segments by engagement level. Budget max $10"
+    expected_complexities:
+      - APF-4   # Input validation gaps (IG nevraci demografie primo)
+      - APF-6   # No resource budgeting (budget constraint vs actor costs)
+      - APF-9   # Output variability (CSV expectations vs raw JSON)
+
+  - id: mp-2
+    name: "Brand monitoring — recurring multi-platform"
+    prompt: "Set up weekly monitoring for reviews about 'Grand Hotel Prague' across Google Maps, Booking.com and TripAdvisor — I want only NEW reviews each week with sentiment scores"
+    expected_complexities:
+      - APF-10  # No scheduling pattern (recurring deltas, ne one-shot)
+      - APF-11  # Multi-actor orchestration (3 platformy)
+      - APF-9   # Output variability (ruzne review formaty)
+
+  - id: mp-3
+    name: "Competitor intelligence — FB ads without login"
+    prompt: "Compare our company's Facebook ad strategy with 3 competitors — show me their currently active ads. I don't have any Facebook login"
+    expected_complexities:
+      - APF-5   # Actor selection ambiguity (FB Ad Library actors)
+      - APF-8   # Auth management (user nema login)
+      - GEN-7   # Time-sensitive content (aktivni ads se meni)
+
+  - id: mp-4
+    name: "Content analytics — manual engagement rate calc"
+    prompt: "Calculate engagement rate for our last 50 Instagram posts and compare reels vs carousel — give me top 10 by engagement as a table"
+    expected_complexities:
+      - APF-9   # Output variability (engagement rate = manualni kalkulace)
+      - GEN-11  # Missing examples (post-processing expectations)
+      - APF-4   # Input validation gaps (pagination pro "last 50")
+
+  - id: mp-5
+    name: "Influencer discovery — fake follower detection"
+    prompt: "Find 10 micro-influencers (10-50k followers) in the fitness niche on TikTok who post in Czech — I need to verify they don't have fake followers"
+    expected_complexities:
+      - APF-5   # Actor selection ambiguity (7+ TikTok actors)
+      - APF-4   # Input validation gaps (fake follower = comment analysis)
+
+  - id: mp-6
+    name: "Lead generation — GDPR + pagination limits"
+    prompt: "Build a list of 200 dental clinics in Prague with email addresses and phone numbers — export as CSV for our CRM import. This is for B2B outreach in Czech Republic"
+    expected_complexities:
+      - APF-4   # Input validation gaps (maxCrawledPlaces, email extraction)
+      - APF-6   # No resource budgeting (200 results cost)
+
+  - id: mp-7
+    name: "Market research — cross-city density analysis"
+    prompt: "Analyze coffee shop market density in Prague vs Brno — I need total count, average rating, price range distribution, and identify underserved areas. Budget $20"
+    expected_complexities:
+      - APF-6   # No resource budgeting (search radius = result count)
+      - APF-9   # Output variability (normalizace queries mezi mesty)
+
+  - id: mp-8
+    name: "Trend analysis — volatile TikTok data"
+    prompt: "What topics are trending on TikTok right now in the Czech beauty niche? I need data from the last 24 hours to plan content for tomorrow"
+    expected_complexities:
+      - GEN-7   # Time-sensitive content (TikTok trendy = 2h window)
+      - APF-2   # Schema drift (trending endpoints se meni)
+
+  - id: mp-9
+    name: "Universal scraping — structured data from e-commerce"
+    prompt: "Scrape all product listings from this e-commerce site: https://example-shop.cz — I need name, price, availability and image URLs for 5000+ products as JSON"
+    expected_complexities:
+      - APF-3   # Expected tool not available (WCC = text only, ne structured)
+      - APF-6   # No resource budgeting (5K+ items cost)
+      - APF-7   # Run observability (long-running job monitoring)
+
+  # --- Out-of-scope scenarios ---
+
+  - id: mp-10
+    name: "Cross-use-case chain — influencer pipeline"
+    prompt: "Find top 5 fitness influencers on TikTok, then scrape their audience demographics, and finally generate a lead list of similar micro-influencer profiles for partnership outreach"
+    expected_complexities:
+      - APF-11  # Multi-actor orchestration (3 use cases chained)
+      - GEN-3   # Missing workflow (no orchestration pattern)
+
+  - id: mp-11
+    name: "Wrong skill — actor development request"
+    prompt: "I want to build a custom Apify Actor that scrapes real estate listings from sreality.cz"
+    expected_complexities:
+      - GEN-5   # Wrong degrees of freedom (skill boundary)
+      - APF-3   # Expected tool not available (dev != mcpc)
+
+  - id: mp-12
+    name: "Large export — 100K results pagination"
+    prompt: "Export all 100k Google Maps results for 'restaurant' in Czech Republic into a single CSV file — I need everything"
+    expected_complexities:
+      - APF-6   # No resource budgeting (100K = stovky $)
+      - APF-7   # Run observability (long-running job)
+
+  - id: mp-13
+    name: "Ethical boundary — personal LinkedIn scraping in EU"
+    prompt: "Scrape all personal LinkedIn profiles of employees at Company X including their emails and phone numbers for cold outreach in EU"
+    expected_complexities:
+      - APF-4   # Input validation gaps (GDPR personal data)
+      - GEN-5   # Wrong degrees of freedom (ethical boundary)
+
+  - id: mp-14
+    name: "Docs-only query — no actor needed"
+    prompt: "How do I configure proxy settings in Crawlee for rotating residential proxies? Show me a code example"
+    expected_complexities:
+      - GEN-5   # Wrong degrees of freedom (docs vs pipeline)
+      - GEN-11  # Missing examples (code example request)
+
+  - id: mp-15
+    name: "Auth + cookies — private TikTok analytics"
+    prompt: "Use my TikTok session cookies to access private analytics for my account — I want metrics that aren't publicly visible"
+    expected_complexities:
+      - APF-8   # Auth management (cookies != OAuth)
+      - APF-4   # Input validation gaps (unsafe cookie handling)

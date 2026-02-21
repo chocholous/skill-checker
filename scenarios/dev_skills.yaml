@@ -6,21 +6,21 @@ scenarios:
     target_skill: apify-actor-development
     prompt: "Create a new Apify Actor that scrapes job listings from indeed.com — it should accept a search query and location, and output structured JSON with title, company, salary, and URL"
     expected_complexities:
-      - CAT-10  # Dev skills have references/, dispatcher skills don't
-      - CAT-1   # ${CLAUDE_PLUGIN_ROOT} undefined
+      - GEN-10  # No progressive disclosure (dev skills have references/)
+      - APF-1   # Path resolution
 
   - id: dev-2
     name: "Actorize Python FastAPI"
     target_skill: apify-actorization
     prompt: "I have a Python FastAPI app that converts PDFs to text using PyMuPDF. Turn it into an Apify Actor that accepts a list of PDF URLs as input and outputs extracted text"
     expected_complexities:
-      - CAT-10  # Dev skills have references/
-      - CAT-1   # ${CLAUDE_PLUGIN_ROOT} undefined
+      - GEN-10  # No progressive disclosure (dev skills have references/)
+      - APF-1   # Path resolution
 
   - id: dev-3
     name: "Debug failing Playwright actor"
     target_skill: apify-actor-development
     prompt: "My Playwright actor keeps timing out on cloudflare-protected sites. It works locally but fails on Apify platform. The actor uses headless Chrome. Help me debug and fix it"
     expected_complexities:
-      - CAT-10  # Dev skills have references/
-      - CAT-1   # ${CLAUDE_PLUGIN_ROOT} undefined
+      - GEN-10  # No progressive disclosure (dev skills have references/)
+      - APF-1   # Path resolution

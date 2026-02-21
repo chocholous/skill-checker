@@ -1,5 +1,9 @@
+.DS_Store
 reports/
 __pycache__/
 *.pyc
 .venv/
 .env
+web/node_modules/
+web/dist/
+*.yaml.bak

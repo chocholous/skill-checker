@@ -7,31 +7,31 @@ scenarios:
     name: "Actor discovery for unknown platform"
     prompt: "I need to scrape reviews from Trustpilot. I don't know which Apify actor to use. Help me find the right one"
     expected_complexities:
-      - CAT-2   # Dynamic schema via mcpc
-      - CAT-7   # mcpc not installed by default
+      - APF-2   # Schema drift (dynamic schema via mcpc)
+      - APF-3   # Expected tool not available (mcpc)
 
   - id: mcpc-2
     name: "Schema inspection"
     prompt: "Show me the full input schema for the apify/instagram-scraper actor — I want to know all available options and their defaults"
     expected_complexities:
-      - CAT-2   # Dynamic schema via mcpc
+      - APF-2   # Schema drift (dynamic schema via mcpc)
 
   - id: mcpc-3
     name: "Run + debug (maxResults ignored)"
     prompt: "I ran the google-news-scraper with maxResults=10 but got 500 results. The actor seems to ignore the limit. Help me understand why and fix it"
     expected_complexities:
-      - CAT-6   # No input validation
-      - CAT-2   # Dynamic schema via mcpc
+      - APF-4   # Input validation gaps
+      - APF-2   # Schema drift (dynamic schema via mcpc)
 
   - id: mcpc-4
     name: "Clarifying question needed"
     prompt: "Scrape some TikTok data for me"
     expected_complexities:
-      - CAT-5   # Actor duplicity (7 TikTok actors)
+      - APF-5   # Actor selection ambiguity (7 TikTok actors)
 
   - id: mcpc-5
     name: "Contradictory constraints"
     prompt: "I need real-time TikTok data updated every 5 minutes for the top 1 million trending videos, but my budget is $5/month on Apify free tier"
     expected_complexities:
-      - CAT-3   # No resource management
-      - CAT-6   # No input validation (impossible constraints)
+      - APF-6   # No resource budgeting
+      - APF-4   # Input validation gaps (impossible constraints)

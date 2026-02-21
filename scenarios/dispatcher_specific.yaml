@@ -6,39 +6,41 @@ scenarios:
     target_skill: apify-influencer-discovery
     prompt: "Find Instagram influencers in the fitness niche with 50K-200K followers who posted about protein supplements in the last 30 days"
     expected_complexities:
-      - CAT-2   # Dynamic schema via mcpc
-      - CAT-6   # No input validation (follower range not in actor schema)
-      - CAT-7   # mcpc not installed by default
+      - APF-2   # Schema drift (dynamic schema via mcpc)
+      - APF-4   # Input validation gaps (follower range not in actor schema)
+      - APF-3   # Expected tool not available (mcpc)
 
   - id: ds-2
     name: "Brand reputation — multi-platform aggregation"
     target_skill: apify-brand-reputation-monitoring
     prompt: "Aggregate all reviews for Hilton Hotels across Google Maps, TripAdvisor, and Booking.com, then give me a sentiment breakdown"
     expected_complexities:
-      - CAT-2   # Dynamic schema via mcpc
-      - CAT-4   # No parallel actor guidance
-      - CAT-5   # Actor duplicity (review scrapers in multiple skills)
+      - APF-2   # Schema drift (dynamic schema via mcpc)
+      - APF-11  # Multi-actor orchestration
+      - APF-5   # Actor selection ambiguity (review scrapers in multiple skills)
 
   - id: ds-3
     name: "Ecommerce — outlier architecture"
     target_skill: apify-ecommerce
     prompt: "Monitor daily price changes for the top 50 wireless headphones on Amazon US"
     expected_complexities:
-      - CAT-9   # Ecommerce outlier — inline schema may be stale
+      - APF-2   # Schema drift (inline schema may be stale)
+      - GEN-7   # Time-sensitive content (hardcoded schema)
+      - APF-10  # No scheduling pattern (daily monitoring)
 
   - id: ds-4
     name: "Lead gen — GDPR"
     target_skill: apify-lead-generation
     prompt: "Scrape all LinkedIn profiles of CTOs at fintech startups in Berlin and extract their email addresses"
     expected_complexities:
-      - CAT-2   # Dynamic schema via mcpc
-      - CAT-6   # No input validation (LinkedIn scraping limits)
-      - CAT-7   # mcpc not installed by default
+      - APF-2   # Schema drift (dynamic schema via mcpc)
+      - APF-4   # Input validation gaps (LinkedIn scraping limits)
+      - APF-3   # Expected tool not available (mcpc)
 
   - id: ds-5
     name: "Trends — actor selection ambiguity"
     target_skill: apify-trend-analysis
     prompt: "Track the rising TikTok trends about sustainable fashion over the past 7 days"
     expected_complexities:
-      - CAT-5   # Actor duplicity (7 TikTok actors, which one?)
-      - CAT-2   # Dynamic schema via mcpc
+      - APF-5   # Actor selection ambiguity (7 TikTok actors)
+      - APF-2   # Schema drift (dynamic schema via mcpc)

@@ -48,3 +48,8 @@ skills:
   mcpc-apify:
     path: /Users/chocho/projects/apify-skills-audit/.claude/skills/mcpc-apify/SKILL.md
     category: mcpc
+
+  # apify-mcpc plugin (centralized mcpc workflow + use-case references)
+  apify-mcpc:
+    path: /Users/chocho/projects/skill-checker/apify-mcpc-plugin/skills/apify-mcpc/SKILL.md
+    category: mcpc-plugin
