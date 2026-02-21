@@ -1,55 +1,50 @@
-# Skills Manifest — paths to SKILL.md files (no copies, no drift)
-# All paths are absolute to avoid ambiguity
+# Skills Manifest — paths to SKILL.md files
+# Skills from apify/agent-skills repo are cloned into skills/ via `make setup`
 
 skills:
-  # 10 Dispatcher skills (shared 5-step workflow)
+  # 9 Dispatcher skills (shared 5-step workflow)
   apify-audience-analysis:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-audience-analysis/SKILL.md
+    path: skills/skills/apify-audience-analysis/SKILL.md
     category: dispatcher
   apify-brand-reputation-monitoring:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-brand-reputation-monitoring/SKILL.md
+    path: skills/skills/apify-brand-reputation-monitoring/SKILL.md
     category: dispatcher
   apify-competitor-intelligence:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-competitor-intelligence/SKILL.md
+    path: skills/skills/apify-competitor-intelligence/SKILL.md
     category: dispatcher
   apify-content-analytics:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-content-analytics/SKILL.md
+    path: skills/skills/apify-content-analytics/SKILL.md
     category: dispatcher
   apify-influencer-discovery:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-influencer-discovery/SKILL.md
+    path: skills/skills/apify-influencer-discovery/SKILL.md
     category: dispatcher
   apify-lead-generation:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-lead-generation/SKILL.md
+    path: skills/skills/apify-lead-generation/SKILL.md
     category: dispatcher
   apify-market-research:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-market-research/SKILL.md
+    path: skills/skills/apify-market-research/SKILL.md
     category: dispatcher
   apify-trend-analysis:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-trend-analysis/SKILL.md
+    path: skills/skills/apify-trend-analysis/SKILL.md
     category: dispatcher
   apify-ultimate-scraper:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-ultimate-scraper/SKILL.md
+    path: skills/skills/apify-ultimate-scraper/SKILL.md
     category: dispatcher
 
   # Ecommerce outlier (inline schema, no mcpc, 3 workflows)
   apify-ecommerce:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-ecommerce/SKILL.md
+    path: skills/skills/apify-ecommerce/SKILL.md
     category: dispatcher-outlier
 
   # 2 Dev skills (fundamentally different)
   apify-actor-development:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-actor-development/SKILL.md
+    path: skills/skills/apify-actor-development/SKILL.md
     category: dev
   apify-actorization:
-    path: /Users/chocho/projects/apify-marketing-intelligence/.agents/skills/apify-actorization/SKILL.md
+    path: skills/skills/apify-actorization/SKILL.md
     category: dev
-
-  # mcpc-apify (actor discovery + schema inspection)
-  mcpc-apify:
-    path: /Users/chocho/projects/apify-skills-audit/.claude/skills/mcpc-apify/SKILL.md
-    category: mcpc
 
   # apify-mcpc plugin (centralized mcpc workflow + use-case references)
   apify-mcpc:
-    path: /Users/chocho/projects/skill-checker/apify-mcpc-plugin/skills/apify-mcpc/SKILL.md
+    path: apify-mcpc-plugin/skills/apify-mcpc/SKILL.md
     category: mcpc-plugin

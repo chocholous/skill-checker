@@ -1,4 +1,4 @@
-# apify-mcpc plugin Scenarios — test domain-specific use cases and boundary handling
+# apify-mcpc Scenarios — mcpc workflow, domain use cases, and boundary handling
 
 target_skill: apify-mcpc
 
@@ -114,3 +114,38 @@ scenarios:
     expected_complexities:
       - APF-8   # Auth management (cookies != OAuth)
       - APF-4   # Input validation gaps (unsafe cookie handling)
+
+  # --- mcpc core workflow scenarios (merged from mcpc_skills) ---
+
+  - id: mcpc-1
+    name: "Actor discovery for unknown platform"
+    prompt: "I need to scrape reviews from Trustpilot. I don't know which Apify actor to use. Help me find the right one"
+    expected_complexities:
+      - APF-2   # Schema drift (dynamic schema via mcpc)
+      - APF-3   # Expected tool not available (mcpc)
+
+  - id: mcpc-2
+    name: "Schema inspection"
+    prompt: "Show me the full input schema for the apify/instagram-scraper actor — I want to know all available options and their defaults"
+    expected_complexities:
+      - APF-2   # Schema drift (dynamic schema via mcpc)
+
+  - id: mcpc-3
+    name: "Run + debug (maxResults ignored)"
+    prompt: "I ran the google-news-scraper with maxResults=10 but got 500 results. The actor seems to ignore the limit. Help me understand why and fix it"
+    expected_complexities:
+      - APF-4   # Input validation gaps
+      - APF-2   # Schema drift (dynamic schema via mcpc)
+
+  - id: mcpc-4
+    name: "Clarifying question needed"
+    prompt: "Scrape some TikTok data for me"
+    expected_complexities:
+      - APF-5   # Actor selection ambiguity (7 TikTok actors)
+
+  - id: mcpc-5
+    name: "Contradictory constraints"
+    prompt: "I need real-time TikTok data updated every 5 minutes for the top 1 million trending videos, but my budget is $5/month on Apify free tier"
+    expected_complexities:
+      - APF-6   # No resource budgeting
+      - APF-4   # Input validation gaps (impossible constraints)
