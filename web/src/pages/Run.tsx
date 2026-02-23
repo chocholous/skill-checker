@@ -1,11 +1,245 @@
+import { PlayIcon } from "@apify/ui-icons";
+import { Button, Heading, Text, theme } from "@apify/ui-library";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import styled from "styled-components";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { useSSE } from "../hooks/useSSE";
 
 const AVAILABLE_MODELS = ["sonnet", "opus", "haiku"];
+
+const PageTitle = styled(Heading)`
+	margin-bottom: ${theme.space.space24};
+`;
+
+const ControlsGrid = styled.div`
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: ${theme.space.space16};
+	margin-bottom: ${theme.space.space24};
+
+	@media ${theme.device.tablet} {
+		grid-template-columns: repeat(3, 1fr);
+	}
+`;
+
+const Card = styled.div`
+	background: ${theme.color.neutral.cardBackground};
+	border: 1px solid ${theme.color.neutral.border};
+	border-radius: ${theme.radius.radius8};
+	box-shadow: ${theme.shadow.shadow1};
+	padding: ${theme.space.space16};
+`;
+
+const CardTitle = styled(Heading)`
+	margin-bottom: ${theme.space.space12};
+`;
+
+const CheckboxLabel = styled.label<{ $disabled?: boolean }>`
+	display: flex;
+	align-items: center;
+	gap: ${theme.space.space8};
+	font-size: 1.4rem;
+	color: ${({ $disabled }) =>
+		$disabled ? theme.color.neutral.textDisabled : theme.color.neutral.text};
+	cursor: ${({ $disabled }) => ($disabled ? "not-allowed" : "pointer")};
+	margin-bottom: ${theme.space.space8};
+
+	&:last-child {
+		margin-bottom: 0;
+	}
+`;
+
+const NativeCheckbox = styled.input`
+	width: 1.6rem;
+	height: 1.6rem;
+	cursor: inherit;
+	accent-color: ${theme.color.primary.action};
+	flex-shrink: 0;
+`;
+
+const RangeWrapper = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${theme.space.space8};
+`;
+
+const NativeRange = styled.input`
+	width: 100%;
+	accent-color: ${theme.color.primary.action};
+	cursor: pointer;
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+`;
+
+const RangeValue = styled(Text)`
+	text-align: center;
+	color: ${theme.color.neutral.textMuted};
+`;
+
+const RunCardInner = styled.div`
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	height: 100%;
+`;
+
+const RunSummary = styled(Text)`
+	color: ${theme.color.neutral.textMuted};
+	margin-bottom: ${theme.space.space12};
+`;
+
+const ScenarioSection = styled(Card)`
+	margin-bottom: ${theme.space.space24};
+`;
+
+const ScenarioHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: ${theme.space.space12};
+`;
+
+const ScenarioHeaderLeft = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${theme.space.space12};
+`;
+
+const ScenarioHeaderRight = styled.div`
+	display: flex;
+	gap: ${theme.space.space8};
+`;
+
+const SelectWrapper = styled.div`
+	display: inline-flex;
+`;
+
+const NativeSelect = styled.select<{ $disabled?: boolean }>`
+	font-size: 1.2rem;
+	padding: ${theme.space.space4} ${theme.space.space8};
+	border-radius: ${theme.radius.radius4};
+	border: 1px solid ${theme.color.neutral.fieldBorder};
+	background: ${theme.color.neutral.fieldBackground};
+	color: ${theme.color.neutral.text};
+	cursor: ${({ $disabled }) => ($disabled ? "not-allowed" : "pointer")};
+	opacity: ${({ $disabled }) => ($disabled ? "0.5" : "1")};
+
+	&:focus {
+		outline: none;
+		border-color: ${theme.color.primary.fieldBorderActive};
+		box-shadow: ${theme.shadow.shadowActive};
+	}
+`;
+
+const FilterButton = styled.button<{ $disabled?: boolean }>`
+	background: none;
+	border: 1px solid ${theme.color.neutral.border};
+	border-radius: ${theme.radius.radius4};
+	padding: ${theme.space.space4} ${theme.space.space8};
+	font-size: 1.2rem;
+	color: ${theme.color.neutral.text};
+	cursor: ${({ $disabled }) => ($disabled ? "not-allowed" : "pointer")};
+	opacity: ${({ $disabled }) => ($disabled ? "0.5" : "1")};
+	transition: background ${theme.transition.fastEaseInOut};
+
+	&:hover:not(:disabled) {
+		background: ${theme.color.neutral.hover};
+	}
+`;
+
+const ScenarioGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: ${theme.space.space4};
+
+	@media ${theme.device.tablet} {
+		grid-template-columns: repeat(3, 1fr);
+	}
+
+	@media ${theme.device.desktop} {
+		grid-template-columns: repeat(4, 1fr);
+	}
+`;
+
+const ScenarioCheckLabel = styled.label<{ $disabled?: boolean }>`
+	display: flex;
+	align-items: center;
+	gap: ${theme.space.space8};
+	padding: ${theme.space.space4};
+	border-radius: ${theme.radius.radius4};
+	font-size: 1.2rem;
+	cursor: ${({ $disabled }) => ($disabled ? "not-allowed" : "pointer")};
+	transition: background ${theme.transition.fastEaseInOut};
+	color: ${({ $disabled }) =>
+		$disabled ? theme.color.neutral.textDisabled : theme.color.neutral.text};
+
+	&:hover {
+		background: ${({ $disabled }) =>
+			$disabled ? "transparent" : theme.color.neutral.hover};
+	}
+`;
+
+const ScenarioId = styled.span`
+	font-family: "IBM Plex Mono", monospace;
+	font-size: 1.1rem;
+	color: ${theme.color.neutral.text};
+	white-space: nowrap;
+`;
+
+const ScenarioName = styled.span`
+	color: ${theme.color.neutral.textMuted};
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+`;
+
+const ProgressSection = styled(Card)`
+	margin-bottom: ${theme.space.space24};
+`;
+
+const ProgressHeader = styled.div`
+	display: flex;
+	align-items: baseline;
+	gap: ${theme.space.space8};
+	margin-bottom: ${theme.space.space12};
+`;
+
+const RunIdText = styled(Text)`
+	color: ${theme.color.neutral.textMuted};
+	font-family: "IBM Plex Mono", monospace;
+`;
+
+const CompletedBanner = styled.div`
+	margin-top: ${theme.space.space16};
+	padding: ${theme.space.space12} ${theme.space.space16};
+	background: ${theme.color.success.backgroundSubtle};
+	border: 1px solid ${theme.color.success.borderSubtle};
+	border-radius: ${theme.radius.radius8};
+	display: flex;
+	align-items: center;
+	gap: ${theme.space.space12};
+`;
+
+const CompletedText = styled(Text)`
+	color: ${theme.color.success.text};
+	font-weight: 500;
+`;
+
+const ViewReportLink = styled(Link)`
+	font-size: 1.3rem;
+	color: ${theme.color.primary.text};
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+`;
 
 export function Run() {
 	const [searchParams] = useSearchParams();
@@ -117,120 +351,131 @@ export function Run() {
 			: scenarios?.map((s) => s.id) || [];
 
 	const isRunning = isConnected || starting;
+	const callCount =
+		(selectedScenarios.length || scenarios?.length || 0) *
+		selectedModels.length;
 
 	return (
 		<div>
-			<h1 className="text-2xl font-bold mb-6">Run Scenarios</h1>
+			<PageTitle type="titleL" as="h1">
+				Run Scenarios
+			</PageTitle>
 
-			<div className="grid md:grid-cols-3 gap-6 mb-6">
-				{/* Models */}
-				<div className="bg-white rounded-lg border shadow-sm p-4">
-					<h3 className="font-semibold mb-3">Models</h3>
-					<div className="flex flex-col gap-2">
-						{AVAILABLE_MODELS.map((m) => (
-							<label key={m} className="flex items-center gap-2 text-sm">
-								<input
-									type="checkbox"
-									checked={selectedModels.includes(m)}
-									onChange={() => toggleModel(m)}
-									disabled={isRunning}
-									className="rounded"
-								/>
-								{m}
-							</label>
-						))}
-					</div>
-				</div>
+			<ControlsGrid>
+				{/* Models card */}
+				<Card>
+					<CardTitle type="titleS" as="h3">
+						Models
+					</CardTitle>
+					{AVAILABLE_MODELS.map((m) => (
+						<CheckboxLabel key={m} $disabled={isRunning}>
+							<NativeCheckbox
+								type="checkbox"
+								checked={selectedModels.includes(m)}
+								onChange={() => toggleModel(m)}
+								disabled={isRunning}
+							/>
+							{m}
+						</CheckboxLabel>
+					))}
+				</Card>
 
-				{/* Concurrency */}
-				<div className="bg-white rounded-lg border shadow-sm p-4">
-					<h3 className="font-semibold mb-3">Concurrency</h3>
-					<input
-						type="range"
-						min={1}
-						max={10}
-						value={concurrency}
-						onChange={(e) => setConcurrency(Number(e.target.value))}
-						disabled={isRunning}
-						className="w-full"
-					/>
-					<div className="text-center text-sm text-gray-600 mt-1">
-						{concurrency}
-					</div>
-				</div>
+				{/* Concurrency card */}
+				<Card>
+					<CardTitle type="titleS" as="h3">
+						Concurrency
+					</CardTitle>
+					<RangeWrapper>
+						<NativeRange
+							type="range"
+							min={1}
+							max={10}
+							value={concurrency}
+							onChange={(e) => setConcurrency(Number(e.target.value))}
+							disabled={isRunning}
+						/>
+						<RangeValue type="body" size="small">
+							{concurrency}
+						</RangeValue>
+					</RangeWrapper>
+				</Card>
 
-				{/* Actions */}
-				<div className="bg-white rounded-lg border shadow-sm p-4 flex flex-col justify-between">
-					<div>
-						<h3 className="font-semibold mb-1">Run</h3>
-						<p className="text-xs text-gray-500 mb-3">
-							{selectedScenarios.length || scenarios?.length || 0} scenarios x{" "}
-							{selectedModels.length} models ={" "}
-							{(selectedScenarios.length || scenarios?.length || 0) *
-								selectedModels.length}{" "}
-							calls
-						</p>
-					</div>
-					<button
-						onClick={handleStart}
-						disabled={isRunning || selectedModels.length === 0}
-						className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 font-medium"
-					>
-						{isRunning ? "Running..." : "Start Run"}
-					</button>
-				</div>
-			</div>
+				{/* Run card */}
+				<Card>
+					<RunCardInner>
+						<div>
+							<CardTitle type="titleS" as="h3">
+								Run
+							</CardTitle>
+							<RunSummary type="body" size="small">
+								{selectedScenarios.length || scenarios?.length || 0} scenarios
+								&times; {selectedModels.length} models = {callCount} calls
+							</RunSummary>
+						</div>
+						<Button
+							size="large"
+							LeftIcon={PlayIcon}
+							onClick={handleStart}
+							disabled={isRunning || selectedModels.length === 0}
+						>
+							{isRunning ? "Running..." : "Start Run"}
+						</Button>
+					</RunCardInner>
+				</Card>
+			</ControlsGrid>
 
 			{/* Scenario selection */}
 			{scenarios && (
-				<div className="bg-white rounded-lg border shadow-sm p-4 mb-6">
-					<div className="flex items-center justify-between mb-3">
-						<div className="flex items-center gap-3">
-							<h3 className="font-semibold">Scenarios</h3>
-							<select
-								value={skillFilter}
-								onChange={(e) => handleSkillFilter(e.target.value)}
-								disabled={isRunning}
-								className="text-xs px-2 py-1 rounded border bg-white"
-							>
-								<option value="">All skills</option>
-								{uniqueSkills.map((skill) => (
-									<option key={skill} value={skill}>
-										{skill} (
-										{scenarios.filter((s) => s.target_skill === skill).length})
-									</option>
-								))}
-							</select>
-						</div>
-						<div className="flex gap-2">
-							<button
+				<ScenarioSection>
+					<ScenarioHeader>
+						<ScenarioHeaderLeft>
+							<CardTitle type="titleS" as="h3">
+								Scenarios
+							</CardTitle>
+							<SelectWrapper>
+								<NativeSelect
+									value={skillFilter}
+									onChange={(e) => handleSkillFilter(e.target.value)}
+									disabled={isRunning}
+									$disabled={isRunning}
+								>
+									<option value="">All skills</option>
+									{uniqueSkills.map((skill) => (
+										<option key={skill} value={skill}>
+											{skill} (
+											{scenarios.filter((s) => s.target_skill === skill).length}
+											)
+										</option>
+									))}
+								</NativeSelect>
+							</SelectWrapper>
+						</ScenarioHeaderLeft>
+						<ScenarioHeaderRight>
+							<FilterButton
 								onClick={() => {
 									setSkillFilter("");
 									setSelectedScenarios([]);
 								}}
-								className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
 								disabled={isRunning}
+								$disabled={isRunning}
 							>
 								All
-							</button>
-							<button
+							</FilterButton>
+							<FilterButton
 								onClick={() =>
 									setSelectedScenarios(filteredScenarios.map((s) => s.id))
 								}
-								className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
 								disabled={isRunning}
+								$disabled={isRunning}
 							>
 								Select All
-							</button>
-						</div>
-					</div>
-					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1">
+							</FilterButton>
+						</ScenarioHeaderRight>
+					</ScenarioHeader>
+					<ScenarioGrid>
 						{filteredScenarios.map((s) => (
-							<label
-								key={s.id}
-								className="flex items-center gap-2 text-xs p-1 rounded hover:bg-gray-50"
-							>
-								<input
+							<ScenarioCheckLabel key={s.id} $disabled={isRunning}>
+								<NativeCheckbox
 									type="checkbox"
 									checked={
 										selectedScenarios.length === 0 ||
@@ -238,25 +483,26 @@ export function Run() {
 									}
 									onChange={() => toggleScenario(s.id)}
 									disabled={isRunning}
-									className="rounded"
 								/>
-								<span className="font-mono">{s.id}</span>
-								<span className="text-gray-500 truncate">{s.name}</span>
-							</label>
+								<ScenarioId>{s.id}</ScenarioId>
+								<ScenarioName>{s.name}</ScenarioName>
+							</ScenarioCheckLabel>
 						))}
-					</div>
-				</div>
+					</ScenarioGrid>
+				</ScenarioSection>
 			)}
 
 			{/* Progress */}
 			{runId && (
-				<div className="bg-white rounded-lg border shadow-sm p-4">
-					<h3 className="font-semibold mb-3">
-						Progress
-						<span className="text-xs font-normal text-gray-400 ml-2">
+				<ProgressSection>
+					<ProgressHeader>
+						<Heading type="titleS" as="h3">
+							Progress
+						</Heading>
+						<RunIdText type="body" size="small">
 							Run: {runId}
-						</span>
-					</h3>
+						</RunIdText>
+					</ProgressHeader>
 					<RunProgress
 						scenarioIds={scenarioIds}
 						models={selectedModels}
@@ -264,19 +510,14 @@ export function Run() {
 						isRunning={isRunning}
 					/>
 					{completedReport && (
-						<div className="mt-4 p-3 bg-green-50 rounded border border-green-200">
-							<span className="text-green-700 text-sm font-medium">
-								Run completed!
-							</span>
-							<a
-								href={`/reports/${completedReport}`}
-								className="ml-3 text-sm text-blue-600 hover:underline"
-							>
+						<CompletedBanner>
+							<CompletedText type="body">Run completed!</CompletedText>
+							<ViewReportLink to={`/reports/${completedReport}`}>
 								View Report
-							</a>
-						</div>
+							</ViewReportLink>
+						</CompletedBanner>
 					)}
-				</div>
+				</ProgressSection>
 			)}
 		</div>
 	);
