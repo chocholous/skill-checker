@@ -78,6 +78,50 @@ python3 sim.py -c 5                # Zvýšit concurrency (default 3)
 | APF-10 | MEDIUM | No scheduling pattern | Jen one-shot, ne recurring use cases |
 | APF-11 | MEDIUM | Multi-actor orchestration | Chybí řetězení actorů guidance |
 
+## Stack
+
+- Language: Python 3.13, TypeScript 5.9
+- Frontend: React 19, Vite 7, styled-components 6, @apify/ui-library 1.124
+- Backend: FastAPI (uvicorn), Python
+- Package managers: pip (Python), npm (Node.js)
+- Testing: pytest (Python), ESLint (TypeScript)
+
+## Testing Conventions
+
+- Python tests: `pytest tests/ -v`
+- Frontend lint: `cd web && npm run lint`
+- Frontend build check: `cd web && npm run build`
+- Full test: `make test` (pytest + dry-run + lint)
+
+## Code Quality Standards
+
+- No hardcoded hex colors — use theme.color.* tokens
+- No hardcoded px/rem — use theme.space.* or theme.radius.*
+- Typography only via <Text> and <Heading> components
+- $ prefix for transient styled-components props
+- ESLint for TypeScript, ruff for Python
+
+## Project Structure
+
+- `sim.py`, `sim_core.py` — CLI tool (Python)
+- `server/` — FastAPI backend
+- `web/` — React frontend (Vite)
+  - `web/src/components/` — shared components
+  - `web/src/pages/` — route pages
+  - `web/src/api/` — API client
+  - `web/src/hooks/` — React hooks
+- `scenarios/` — YAML test scenarios
+- `design-system/` — @apify/ui-library reference docs
+- `skills/` — cloned agent-skills repo (gitignored subdir)
+- `reports/` — generated reports (gitignored)
+
+## Config Management
+
+- No .env files currently used
+- Backend port: 8420 (hardcoded in Makefile/vite proxy)
+- Frontend dev server: 5173 (Vite default)
+- Vite proxy: /api → http://127.0.0.1:8420
+
 ## Dependencies
 
 - Python 3.13 (system)
