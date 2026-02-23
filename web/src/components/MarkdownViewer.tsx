@@ -1,9 +1,5 @@
-import ReactMarkdown from 'react-markdown';
+import { SimpleMarkdown } from "@apify/ui-library";
 
 export function MarkdownViewer({ content }: { content: string }) {
-  return (
-    <div className="prose prose-sm max-w-none">
-      <ReactMarkdown>{content}</ReactMarkdown>
-    </div>
-  );
+	return <SimpleMarkdown size="regular">{content}</SimpleMarkdown>;
 }
