@@ -1,0 +1,11 @@
+domain: audience-analysis
+target_skill: apify-audience-analysis
+
+scenarios:
+  - id: aa-1
+    name: "Instagram audience demographics — follower segmentation"
+    prompt: "Analyze the audience demographics and engagement quality of @nike on Instagram — I need a CSV with follower segments by engagement level"
+
+  - id: aa-2
+    name: "Audience overlap comparison — Adidas vs Puma"
+    prompt: "Compare the audience overlap and engagement patterns between @adidas and @puma on Instagram and TikTok — which brand has more authentic engagement?"

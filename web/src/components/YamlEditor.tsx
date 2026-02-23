@@ -8,6 +8,8 @@ import { api } from "../api/client";
 
 interface Props {
 	sourceFile: string;
+	/** If provided, the editor uses this as initial content instead of fetching from the API. */
+	initialContent?: string;
 	onSaved?: () => void;
 }
 
@@ -44,15 +46,41 @@ const LoadingState = styled.div`
     padding: ${theme.space.space16};
 `;
 
-export function YamlEditor({ sourceFile, onSaved }: Props) {
-	const [content, setContent] = useState("");
-	const [original, setOriginal] = useState("");
-	const [loading, setLoading] = useState(true);
+function getInsertSnippet(currentContent: string): string {
+	const isDomain = /^domain:/m.test(currentContent);
+	// Find existing ids to auto-increment
+	const idMatches = [...currentContent.matchAll(/- id: (?:new-)?(\d+)/g)];
+	const maxNum = idMatches.reduce(
+		(max, m) => Math.max(max, Number.parseInt(m[1], 10) || 0),
+		0,
+	);
+	const nextId = `new-${maxNum + 1}`;
+
+	if (isDomain) {
+		return ["", `  - id: ${nextId}`, '    name: ""', '    prompt: ""', ""].join(
+			"\n",
+		);
+	}
+	return [
+		"",
+		`  - id: ${nextId}`,
+		'    name: ""',
+		'    target_skill: ""',
+		'    prompt: ""',
+		"",
+	].join("\n");
+}
+
+export function YamlEditor({ sourceFile, initialContent, onSaved }: Props) {
+	const [content, setContent] = useState(initialContent ?? "");
+	const [original, setOriginal] = useState(initialContent ?? "");
+	const [loading, setLoading] = useState(!initialContent);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
 
 	useEffect(() => {
+		if (initialContent !== undefined) return;
 		setLoading(true);
 		api
 			.getRawYaml(sourceFile)
@@ -65,7 +93,7 @@ export function YamlEditor({ sourceFile, onSaved }: Props) {
 				setError(String(e));
 				setLoading(false);
 			});
-	}, [sourceFile]);
+	}, [sourceFile, initialContent]);
 
 	const handleSave = useCallback(async () => {
 		setSaving(true);
@@ -95,6 +123,12 @@ export function YamlEditor({ sourceFile, onSaved }: Props) {
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleSave]);
 
+	const handleInsertTemplate = useCallback(() => {
+		const snippet = getInsertSnippet(content);
+		const trimmed = content.endsWith("\n") ? content : `${content}\n`;
+		setContent(trimmed + snippet);
+	}, [content]);
+
 	if (loading) {
 		return (
 			<LoadingState>
@@ -114,6 +148,13 @@ export function YamlEditor({ sourceFile, onSaved }: Props) {
 					{sourceFile}
 				</Text>
 				<HeaderActions>
+					<Button
+						size="small"
+						variant="secondary"
+						onClick={handleInsertTemplate}
+					>
+						Insert Template
+					</Button>
 					{isDirty && (
 						<Text type="body" size="small" color={theme.color.warning.text}>
 							Unsaved changes

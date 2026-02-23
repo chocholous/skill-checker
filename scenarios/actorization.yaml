@@ -1,0 +1,7 @@
+domain: actorization
+target_skill: apify-actorization
+
+scenarios:
+  - id: act-1
+    name: "Convert Python scraper to Apify Actor — sreality.cz"
+    prompt: "I have an existing Python script that scrapes real estate listings from sreality.cz using requests and BeautifulSoup. Convert it into a proper Apify Actor with correct input schema, dataset output, and proxy support"

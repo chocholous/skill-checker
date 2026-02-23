@@ -1,0 +1,31 @@
+# WF — Workflow Quality scenarios
+# Tests: workflow completeness, feedback loops, degrees of freedom, scope detection
+
+category: WF
+default_models: [sonnet]
+
+scenarios:
+  - id: wf-scraper-basic
+    name: "Basic scraping — missing workflow steps"
+    target_skill: apify-ultimate-scraper
+    prompt: "Scrape top 10 Instagram posts for Nike"
+
+  - id: wf-chain-feedback
+    name: "Multi-step chain — no feedback loop"
+    target_skill: apify-ultimate-scraper
+    prompt: "Find the top 20 restaurants in Prague on Google Maps, then scrape their TripAdvisor reviews"
+
+  - id: wf-ecommerce-rigid
+    name: "Ecommerce — rigid workflow for flexible task"
+    target_skill: apify-ecommerce
+    prompt: "Monitor daily price changes for the top 50 wireless headphones on Amazon US"
+
+  - id: wf-mcpc-scope
+    name: "Docs-only query — scope detection"
+    target_skill: apify-mcpc
+    prompt: "How do I configure proxy settings in Crawlee for rotating residential proxies? Show me a code example"
+
+  - id: wf-dev-examples
+    name: "Actor development — missing examples"
+    target_skill: apify-actor-development
+    prompt: "Create a new Apify Actor that scrapes job listings from indeed.com — it should accept a search query and location, and output structured JSON with title, company, salary, and URL"

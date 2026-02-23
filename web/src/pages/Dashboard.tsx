@@ -82,6 +82,10 @@ const CategoriesGrid = styled.div`
     @media ${theme.device.tablet} {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    @media ${theme.device.desktop} {
+        grid-template-columns: repeat(3, 1fr);
+    }
 `;
 
 const CategoryCard = styled.div`
@@ -102,6 +106,22 @@ const CategoryRow = styled.div`
     }
 `;
 
+const ModelTags = styled.div`
+    display: flex;
+    gap: ${theme.space.space4};
+    margin-top: ${theme.space.space4};
+    margin-bottom: ${theme.space.space8};
+`;
+
+const ModelTag = styled.span`
+    font-size: 1.1rem;
+    padding: 0.1rem ${theme.space.space4};
+    border-radius: ${theme.radius.radius4};
+    background: ${theme.color.neutral.backgroundMuted};
+    color: ${theme.color.neutral.textMuted};
+    font-family: 'IBM Plex Mono', monospace;
+`;
+
 const SectionHeading = styled.div`
     margin-bottom: ${theme.space.space12};
 `;
@@ -117,6 +137,10 @@ export function Dashboard() {
 	});
 	const skills = useQuery({ queryKey: ["skills"], queryFn: api.getSkills });
 	const reports = useQuery({ queryKey: ["reports"], queryFn: api.getReports });
+	const heatmapDomains = useQuery({
+		queryKey: ["heatmap-domains"],
+		queryFn: api.getHeatmapDomains,
+	});
 
 	return (
 		<div>
@@ -139,6 +163,11 @@ export function Dashboard() {
 					label="Reports"
 					value={reports.data?.length}
 					href="/reports"
+				/>
+				<StatCard
+					label="Heatmap Domains"
+					value={heatmapDomains.data?.length}
+					href="/heatmap"
 				/>
 			</StatsGrid>
 
@@ -186,58 +215,41 @@ export function Dashboard() {
 				<div>
 					<SectionHeading>
 						<Heading type="titleS" as="h2">
-							Category Taxonomy
+							Category Taxonomy ({categories.data.total} checks)
 						</Heading>
 					</SectionHeading>
 					<CategoriesGrid>
-						<CategoryCard>
-							<Text
-								type="body"
-								size="small"
-								weight="medium"
-								color={theme.color.neutral.textMuted}
-								as="h3"
-								mb="space8"
-							>
-								GEN — General Quality ({Object.keys(categories.data.gen).length}
-								)
-							</Text>
-							{Object.values(categories.data.gen).map((c) => (
-								<CategoryRow key={c.id}>
-									<SeverityBadge severity={c.severity} />
-									<Text type="code" size="small">
-										{c.id}
-									</Text>
-									<Text type="body" size="small">
-										{c.name}
-									</Text>
-								</CategoryRow>
-							))}
-						</CategoryCard>
-						<CategoryCard>
-							<Text
-								type="body"
-								size="small"
-								weight="medium"
-								color={theme.color.neutral.textMuted}
-								as="h3"
-								mb="space8"
-							>
-								APF — Platform Pitfalls (
-								{Object.keys(categories.data.apf).length})
-							</Text>
-							{Object.values(categories.data.apf).map((c) => (
-								<CategoryRow key={c.id}>
-									<SeverityBadge severity={c.severity} />
-									<Text type="code" size="small">
-										{c.id}
-									</Text>
-									<Text type="body" size="small">
-										{c.name}
-									</Text>
-								</CategoryRow>
-							))}
-						</CategoryCard>
+						{Object.entries(categories.data.groups).map(([key, group]) => (
+							<CategoryCard key={key}>
+								<Text
+									type="body"
+									size="small"
+									weight="medium"
+									color={theme.color.neutral.textMuted}
+									as="h3"
+									mb="space4"
+								>
+									{key.toUpperCase()} — {group.name} (
+									{Object.keys(group.categories).length})
+								</Text>
+								<ModelTags>
+									{group.default_models.map((m) => (
+										<ModelTag key={m}>{m}</ModelTag>
+									))}
+								</ModelTags>
+								{Object.values(group.categories).map((c) => (
+									<CategoryRow key={c.id}>
+										<SeverityBadge severity={c.severity} />
+										<Text type="code" size="small">
+											{c.id}
+										</Text>
+										<Text type="body" size="small">
+											{c.name}
+										</Text>
+									</CategoryRow>
+								))}
+							</CategoryCard>
+						))}
 					</CategoriesGrid>
 				</div>
 			)}

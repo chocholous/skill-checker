@@ -1,0 +1,11 @@
+domain: lead-generation
+target_skill: apify-lead-generation
+
+scenarios:
+  - id: lg-1
+    name: "LinkedIn CTO scraping — GDPR caveats"
+    prompt: "Scrape all LinkedIn profiles of CTOs at fintech startups in Berlin and extract their email addresses for cold outreach"
+
+  - id: lg-2
+    name: "SaaS company list with marketing contacts"
+    prompt: "Build a list of 200 SaaS companies in the US with 50-200 employees — I need company name, website, and the name/email of the head of marketing"

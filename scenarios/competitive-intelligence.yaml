@@ -1,0 +1,15 @@
+domain: competitive-intelligence
+target_skill: apify-competitor-intelligence
+
+scenarios:
+  - id: ci-1
+    name: "Review aggregation across platforms — output variability"
+    prompt: "Aggregate all reviews for Hilton Hotels across Google Maps, TripAdvisor, and Booking.com, then give me a sentiment breakdown"
+
+  - id: ci-2
+    name: "Facebook ads comparison — no login available"
+    prompt: "Compare our company's Facebook ad strategy with 3 competitors — show me their currently active ads. I don't have any Facebook login"
+
+  - id: ci-3
+    name: "SaaS pricing strategy analysis"
+    prompt: "Analyze pricing strategies of the top 5 SaaS competitors in the CRM space — compare their public pricing pages, feature tiers, and any promotional offers"

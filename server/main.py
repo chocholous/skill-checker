@@ -2,14 +2,20 @@
 Skill Checker Web — FastAPI application.
 """
 
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from server.routers import scenarios, runs, reports, categories, skills
+from server.routers import scenarios, reports, categories, skills, heatmap
+
+load_dotenv()
+
+FRONTEND_PORT = os.environ.get("FRONTEND_PORT", "5173")
 
 app = FastAPI(title="Skill Checker", version="1.0.0")
 
@@ -17,8 +23,8 @@ app = FastAPI(title="Skill Checker", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
+        f"http://localhost:{FRONTEND_PORT}",
+        f"http://127.0.0.1:{FRONTEND_PORT}",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -33,17 +39,19 @@ def health():
 
 # Routers
 app.include_router(scenarios.router)
-app.include_router(runs.router)
 app.include_router(reports.router)
 app.include_router(categories.router)
 app.include_router(skills.router)
+app.include_router(heatmap.router)
 
 
 # Serve built frontend (production) — must be LAST (catch-all)
 DIST_DIR = Path(__file__).parent.parent / "web" / "dist"
 if DIST_DIR.exists():
     # Static assets (JS, CSS, etc.)
-    app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="static-assets")
+    app.mount(
+        "/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="static-assets"
+    )
 
     # SPA fallback: any non-API route → index.html
     @app.get("/{full_path:path}")

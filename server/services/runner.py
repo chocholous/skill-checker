@@ -3,24 +3,24 @@ RunManager — manages async scenario execution with SSE progress events.
 """
 
 import asyncio
-import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 from sim_core import (
     DEFAULT_CONCURRENCY,
-    RunResult,
     Scenario,
+    ScoredRun,
+    get_target_skills,
+    load_domain_scenarios,
     load_manifest,
-    run_scenario,
-    save_reports,
+    run_scored_scenario,
+    save_scored_report,
 )
 
 
-class RunStatus(str, Enum):
+class ScoredRunStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -28,14 +28,15 @@ class RunStatus(str, Enum):
 
 
 @dataclass
-class RunState:
+class ScoredRunState:
     run_id: str
-    status: RunStatus
-    models: list[str]
-    scenario_ids: list[str]
+    status: ScoredRunStatus
+    model: str
+    domains: list[str] | None
     concurrency: int
-    progress: dict[str, dict[str, str]] = field(default_factory=dict)  # {scenario_id: {model: status}}
-    results: list[RunResult] = field(default_factory=list)
+    # {scenario_id: {skill_name: status}}
+    progress: dict[str, dict[str, str]] = field(default_factory=dict)
+    results: list[ScoredRun] = field(default_factory=list)
     error: str | None = None
     queue: asyncio.Queue = field(default_factory=asyncio.Queue)
     started_at: str = ""
@@ -44,100 +45,147 @@ class RunState:
 
 class RunManager:
     def __init__(self):
-        self._runs: dict[str, RunState] = {}
+        self._scored_runs: dict[str, ScoredRunState] = {}
 
-    def get_run(self, run_id: str) -> RunState | None:
-        return self._runs.get(run_id)
+    def get_scored_run(self, run_id: str) -> ScoredRunState | None:
+        return self._scored_runs.get(run_id)
 
-    def start_run(
+    def start_scored_run(
         self,
-        scenarios: list[Scenario],
-        models: list[str],
+        domains: list[str] | None,
+        model: str,
         concurrency: int = DEFAULT_CONCURRENCY,
     ) -> str:
+        """Start a scored run. Returns run_id."""
         run_id = uuid.uuid4().hex[:12]
-        state = RunState(
+
+        state = ScoredRunState(
             run_id=run_id,
-            status=RunStatus.PENDING,
-            models=models,
-            scenario_ids=[s.id for s in scenarios],
+            status=ScoredRunStatus.PENDING,
+            model=model,
+            domains=domains,
             concurrency=concurrency,
             started_at=datetime.now().isoformat(),
         )
 
-        # Init progress grid
-        for s in scenarios:
-            state.progress[s.id] = {m: "pending" for m in models}
+        self._scored_runs[run_id] = state
 
-        self._runs[run_id] = state
-
-        asyncio.create_task(self._execute(state, scenarios, models, concurrency))
+        asyncio.create_task(self._execute_scored(state))
         return run_id
 
-    async def _execute(
-        self,
-        state: RunState,
-        scenarios: list[Scenario],
-        models: list[str],
-        concurrency: int,
-    ):
-        state.status = RunStatus.RUNNING
-        await state.queue.put({"event": "started", "data": {
-            "run_id": state.run_id,
-            "total": len(scenarios) * len(models),
-        }})
+    async def _execute_scored(self, state: ScoredRunState):
+        """Execute a scored run: for each (scenario, skill) combination, run scored evaluation."""
+        state.status = ScoredRunStatus.RUNNING
 
         try:
             manifest = load_manifest()
-            semaphore = asyncio.Semaphore(concurrency)
+            domain_scenarios = load_domain_scenarios()
 
-            async def run_one(scenario: Scenario, model: str):
-                state.progress[scenario.id][model] = "running"
-                await state.queue.put({"event": "progress", "data": {
-                    "scenario_id": scenario.id,
-                    "model": model,
-                    "status": "running",
-                }})
+            # Filter domains if specified
+            if state.domains is not None:
+                filtered = {
+                    d: domain_scenarios[d]
+                    for d in state.domains
+                    if d in domain_scenarios
+                }
+            else:
+                filtered = domain_scenarios
 
-                result = await run_scenario(scenario, model, manifest, semaphore)
-                state.results.append(result)
+            # Build task list: (scenario, skill_name)
+            tasks_list: list[tuple[Scenario, str]] = []
+            for domain_id, scenarios in filtered.items():
+                for scenario in scenarios:
+                    skills = get_target_skills(scenario, manifest)
+                    for skill_name in skills:
+                        tasks_list.append((scenario, skill_name))
+                        # Init progress grid
+                        if scenario.id not in state.progress:
+                            state.progress[scenario.id] = {}
+                        state.progress[scenario.id][skill_name] = "pending"
 
-                cell_status = "error" if result.error else "ok"
-                state.progress[scenario.id][model] = cell_status
-                await state.queue.put({"event": "progress", "data": {
-                    "scenario_id": scenario.id,
-                    "model": model,
-                    "status": cell_status,
-                    "duration_s": result.duration_s,
-                    "error": result.error,
-                }})
+            total = len(tasks_list)
+            await state.queue.put(
+                {
+                    "event": "started",
+                    "data": {
+                        "run_id": state.run_id,
+                        "total": total,
+                    },
+                }
+            )
 
-            tasks = [
-                run_one(s, m)
-                for s in scenarios
-                for m in models
-            ]
-            await asyncio.gather(*tasks)
+            semaphore = asyncio.Semaphore(state.concurrency)
 
-            # Save reports
-            md_path, json_path = save_reports(scenarios, state.results, models)
+            async def run_one_scored(scenario: Scenario, skill_name: str):
+                state.progress[scenario.id][skill_name] = "running"
+                await state.queue.put(
+                    {
+                        "event": "progress",
+                        "data": {
+                            "scenario_id": scenario.id,
+                            "skill": skill_name,
+                            "status": "running",
+                        },
+                    }
+                )
 
-            state.status = RunStatus.COMPLETED
+                scored = await run_scored_scenario(
+                    scenario, skill_name, state.model, manifest, semaphore
+                )
+                state.results.append(scored)
+
+                cell_status = "error" if scored.error else "ok"
+                state.progress[scenario.id][skill_name] = cell_status
+                await state.queue.put(
+                    {
+                        "event": "progress",
+                        "data": {
+                            "scenario_id": scenario.id,
+                            "skill": skill_name,
+                            "status": cell_status,
+                            "duration_s": scored.duration_s,
+                            "error": scored.error,
+                        },
+                    }
+                )
+
+            coros = [run_one_scored(s, sk) for s, sk in tasks_list]
+            await asyncio.gather(*coros)
+
+            # Save scored report
+            metadata = {
+                "model": state.model,
+                "domains": state.domains,
+                "concurrency": state.concurrency,
+            }
+            report_path = save_scored_report(state.results, metadata)
+
+            state.status = ScoredRunStatus.COMPLETED
             state.completed_at = datetime.now().isoformat()
-            await state.queue.put({"event": "completed", "data": {
-                "run_id": state.run_id,
-                "report_md": md_path.name,
-                "report_json": json_path.name,
-            }})
+            await state.queue.put(
+                {
+                    "event": "completed",
+                    "data": {
+                        "run_id": state.run_id,
+                        "report_json": report_path.name,
+                        "total_results": len(state.results),
+                    },
+                }
+            )
 
         except Exception as e:
-            state.status = RunStatus.FAILED
+            state.status = ScoredRunStatus.FAILED
             state.error = str(e)
             state.completed_at = datetime.now().isoformat()
-            await state.queue.put({"event": "error", "data": {
-                "run_id": state.run_id,
-                "error": str(e),
-            }})
+            await state.queue.put(
+                {
+                    "event": "error",
+                    "data": {
+                        "run_id": state.run_id,
+                        "error": str(e),
+                    },
+                }
+            )
 
         # Signal end of stream
         await state.queue.put(None)

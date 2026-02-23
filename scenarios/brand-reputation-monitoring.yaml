@@ -1,0 +1,12 @@
+domain: brand-reputation-monitoring
+target_skill: apify-brand-reputation-monitoring
+
+scenarios:
+  - id: brm-1
+    name: "Review aggregation across platforms — sentiment breakdown"
+    prompt: "Aggregate all reviews for Hilton Hotels across Google Maps, TripAdvisor, and Booking.com, then give me a sentiment breakdown"
+
+  - id: brm-2
+    name: "Weekly new review monitoring with sentiment scores"
+    prompt: "Set up weekly monitoring for reviews about 'Grand Hotel Prague' across Google Maps, Booking.com and TripAdvisor — I want only NEW reviews each week with sentiment scores"
+  

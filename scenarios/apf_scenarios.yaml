@@ -1,0 +1,56 @@
+# APF — Apify Platform Awareness scenarios
+# Tests: path resolution, schema drift, tool availability, input gotchas, budgeting, observability, storage, proxy, orchestration
+
+category: APF
+default_models: [sonnet, opus]
+
+scenarios:
+  - id: apf-path-basic
+    name: "Basic run — path resolution + tool availability"
+    target_skill: apify-ultimate-scraper
+    prompt: "Scrape the top 100 Google Maps restaurants in Prague with ratings and phone numbers"
+
+  - id: apf-schema-drift
+    name: "Schema inspection — stale examples"
+    target_skill: apify-mcpc
+    prompt: "Show me the full input schema for the apify/instagram-scraper actor — I want to know all available options and their defaults"
+
+  - id: apf-input-gotchas
+    name: "Input validation — maxResults ignored"
+    target_skill: apify-mcpc
+    prompt: "I ran the google-news-scraper with maxResults=10 but got 500 results. The actor seems to ignore the limit. Help me understand why and fix it"
+
+  - id: apf-budget-large
+    name: "Large export — resource budgeting"
+    target_skill: apify-mcpc
+    prompt: "Export all 100K Google Maps results for 'restaurant' in Czech Republic into a single CSV file — I need everything"
+
+  - id: apf-ecommerce-storage
+    name: "Ecommerce output — storage confusion"
+    target_skill: apify-ecommerce
+    prompt: "Scrape all product listings from this e-commerce site and store them so I can query by category later"
+
+  - id: apf-actor-metadata
+    name: "Actor discovery — ignoring metadata"
+    target_skill: apify-mcpc
+    prompt: "I need to scrape reviews from Trustpilot. I don't know which Apify actor to use. Help me find the right one"
+
+  - id: apf-proxy-geo
+    name: "Geo-restricted content — proxy unawareness"
+    target_skill: apify-ultimate-scraper
+    prompt: "Scrape product prices from amazon.co.jp — I need Japan-specific pricing that differs from US store"
+
+  - id: apf-chain-orchestration
+    name: "Multi-actor orchestration chain"
+    target_skill: apify-mcpc
+    prompt: "Find top 5 fitness influencers on TikTok, then scrape their audience demographics, and finally generate a lead list of similar micro-influencer profiles for partnership outreach"
+
+  - id: apf-dev-path
+    name: "Dev skill — path resolution"
+    target_skill: apify-actor-development
+    prompt: "My Playwright actor keeps timing out on cloudflare-protected sites. It works locally but fails on Apify platform. The actor uses headless Chrome. Help me debug and fix it"
+
+  - id: apf-contradictory
+    name: "Contradictory constraints — budget vs scale"
+    target_skill: apify-mcpc
+    prompt: "I need real-time TikTok data updated every 5 minutes for the top 1 million trending videos, but my budget is $5/month on Apify free tier"

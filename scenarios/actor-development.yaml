@@ -1,0 +1,11 @@
+domain: actor-development
+target_skill: apify-actor-development
+
+scenarios:
+  - id: dev-1
+    name: "indeed.com job listings scraper — actor from scratch"
+    prompt: "Create a new Apify Actor that scrapes job listings from indeed.com — it should accept a search query and location, and output structured JSON with title, company, salary, and URL"
+
+  - id: dev-2
+    name: "Playwright actor debugging — Cloudflare timeout on platform"
+    prompt: "My Playwright actor keeps timing out on cloudflare-protected sites. It works locally but fails on Apify platform. The actor uses headless Chrome. Help me debug and fix it"

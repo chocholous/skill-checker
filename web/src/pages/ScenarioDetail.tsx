@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import styled from "styled-components";
 import { api } from "../api/client";
-import { CategoryTag } from "../components/CategoryTag";
 import { MarkdownViewer } from "../components/MarkdownViewer";
 
 const BackLink = styled(Link)`
@@ -54,13 +53,6 @@ const PromptBox = styled.div`
     background: ${theme.color.neutral.backgroundSubtle};
     border-radius: ${theme.radius.radius6};
     border: 1px solid ${theme.color.neutral.border};
-`;
-
-const TagsRow = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: ${theme.space.space4};
-    margin-top: ${theme.space.space4};
 `;
 
 const FieldSection = styled.div`
@@ -154,23 +146,6 @@ export function ScenarioDetail() {
 							{scenario.prompt}
 						</Text>
 					</PromptBox>
-				</FieldSection>
-
-				<FieldSection>
-					<FieldLabel type="body" size="small" weight="medium">
-						Expected Complexities
-					</FieldLabel>
-					<TagsRow>
-						{scenario.expected_complexities.map((c) => (
-							<CategoryTag
-								key={c.id}
-								id={c.id}
-								name={c.name}
-								severity={c.severity}
-								description={c.description}
-							/>
-						))}
-					</TagsRow>
 				</FieldSection>
 
 				<Button

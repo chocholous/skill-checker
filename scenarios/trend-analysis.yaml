@@ -1,0 +1,11 @@
+domain: trend-analysis
+target_skill: apify-trend-analysis
+
+scenarios:
+  - id: ta-1
+    name: "TikTok trends — Czech beauty niche, 24h window"
+    prompt: "What topics are trending on TikTok right now in the Czech beauty niche? I need data from the last 24 hours to plan content for tomorrow"
+
+  - id: ta-2
+    name: "TikTok rising trends — sustainable fashion, 7 days"
+    prompt: "Track rising TikTok trends about sustainable fashion over the past 7 days"

@@ -4,8 +4,8 @@ import styled from "styled-components";
 
 const navItems = [
 	{ to: "/", label: "Dashboard", end: true },
+	{ to: "/heatmap", label: "Heatmap", end: false },
 	{ to: "/scenarios", label: "Scenarios", end: false },
-	{ to: "/run", label: "Run", end: false },
 	{ to: "/reports", label: "Reports", end: false },
 ];
 

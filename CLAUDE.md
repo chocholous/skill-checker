@@ -4,13 +4,15 @@ CLI nástroj pro testování kvality SKILL.md souborů — posílá skill + test
 
 ## Účel
 
-Ověřit, jak dobře SKILL.md instrukce připraví agenta na reálné uživatelské prompty. Identifikuje mezery, chybějící guidance a potenciální selhání napříč dvěma vrstvami: GEN (obecná kvalita skillů) a APF (Apify platform pasti).
+Ověřit, jak dobře SKILL.md instrukce připraví agenta na reálné uživatelské prompty. Identifikuje mezery, chybějící guidance a potenciální selhání napříč 5 vrstvami: WF (workflow), DK (domain knowledge), BP (best practices — statický linter), APF (Apify platform) a SEC (security).
 
 ## Architektura
 
-- **`sim.py`** — hlavní CLI, async, ~270 řádků. Používá `claude -p` pro volání modelů (ne Agent SDK, ne API přímo).
+- **`sim.py`** — hlavní CLI, async. Používá `claude -p` pro volání modelů (ne Agent SDK, ne API přímo).
+- **`sim_core.py`** — shared logika: taxonomie, dataclass, loading, execution, reporting.
+- **`bp_linter.py`** — statický linter pro BP checky (bez API volání).
 - **`skills_manifest.yaml`** — absolutní cesty ke SKILL.md souborům (žádné kopie → žádný drift)
-- **`scenarios/*.yaml`** — testovací scénáře s expected_complexities
+- **`scenarios/*.yaml`** — testovací scénáře po kategoriích s expected_checks
 - **`reports/`** — gitignored výstup (Markdown + JSON)
 
 ## 13 testovaných skillů
@@ -18,16 +20,25 @@ Ověřit, jak dobře SKILL.md instrukce připraví agenta na reálné uživatels
 - 9 dispatcher skillů (shared 5-step workflow) z `apify-marketing-intelligence/.agents/skills/`
 - 1 dispatcher outlier: apify-ecommerce (inline schema, no mcpc)
 - 2 dev skillů: apify-actor-development, apify-actorization
-- 1 mcpc skill: mcpc-apify z `apify-skills-audit/`
+- 1 mcpc skill: mcpc-apify z `apify-mcpc-plugin/`
 
-## 18 scénářů ve 4 kategoriích
+## 23 scénářů ve 4 souborech + BP linter per-skill
 
-| Soubor | Počet | Co testuje |
-|---|---|---|
-| `dispatcher_common.yaml` | 5 | ultimate-scraper — basic, chain, limits, prereqs, ambiguity |
-| `dispatcher_specific.yaml` | 5 | per-skill edge cases — filtering, aggregation, GDPR, outlier |
-| `dev_skills.yaml` | 3 | actor dev + actorization — new, convert, debug |
-| `mcpc_skills.yaml` | 5 | discovery, schema, run+debug, clarification, constraints |
+| Soubor | Cat | Počet | Modely |
+|---|---|---|---|
+| `wf_scenarios.yaml` | WF | 5 | sonnet |
+| `dk_scenarios.yaml` | DK | 6 | sonnet, opus, haiku |
+| `apf_scenarios.yaml` | APF | 10 | sonnet, opus |
+| `sec_scenarios.yaml` | SEC | 2 | sonnet |
+| (bp-linter per-skill) | BP | 7 | bp-linter (static) |
+
+Total: 45 API volání + 7 BP checks = 52 celkem
+
+## Per-category model strategie
+
+- `--model` CLI = full override (přepíše per-category defaults)
+- Bez `--model`: každá kategorie používá své default modely
+- BP linter běží vždy per-skill bez API volání
 
 ## Použití
 
@@ -36,47 +47,66 @@ Ověřit, jak dobře SKILL.md instrukce připraví agenta na reálné uživatels
 
 python3 sim.py --list              # Přehled scénářů
 python3 sim.py --dry-run           # Co se spustí + odhad ceny
-python3 sim.py -s dc-1 -m haiku   # Jeden scénář, jeden model
-python3 sim.py -m sonnet -m opus   # Dva modely, všechny scénáře
-python3 sim.py                     # Plný běh (54 calls, ~$3-8)
+python3 sim.py -s wf-scraper-basic -m haiku   # Jeden scénář, jeden model
+python3 sim.py -m sonnet -m opus   # Dva modely (override), všechny scénáře
+python3 sim.py                     # Plný běh (~52 checks, ~$2-7)
 python3 sim.py -c 5                # Zvýšit concurrency (default 3)
 ```
 
-## Taxonomie kategorií (GEN + APF se severity)
+## 5-Category Taxonomy (33 checků)
 
-### GEN — Obecné skill quality problémy (13 kategorií)
+### WF — Workflow Quality (6)
+| ID | Severity | Název |
+|---|---|---|
+| WF-1 | HIGH | Missing workflow |
+| WF-2 | MED | No feedback loop |
+| WF-3 | HIGH | Wrong degrees of freedom |
+| WF-4 | MED | Missing examples |
+| WF-5 | MED | No scope detection |
+| WF-6 | MED | Linear-only workflow |
 
-| ID | Severity | Název | Co testuje |
-|---|---|---|---|
-| GEN-1 | HIGH | Token budget exceeded | SKILL.md nad 500 řádků; zbytečný kontext |
-| GEN-2 | MEDIUM | Poor description | Chybí trigger conditions, není 3rd person, vágní |
-| GEN-3 | HIGH | Missing workflow | Komplexní task bez kroků, checklistu |
-| GEN-4 | MEDIUM | No feedback loop | Chybí validate→fix→retry cyklus |
-| GEN-5 | HIGH | Wrong degrees of freedom | Příliš rigidní nebo příliš volné |
-| GEN-6 | LOW | Deep reference nesting | Reference 2+ úrovně hluboko |
-| GEN-7 | MEDIUM | Time-sensitive content | Hardcoded verze, schémata bez údržby |
-| GEN-8 | LOW | Inconsistent terminology | Míchání termínů pro stejný koncept |
-| GEN-9 | HIGH | Unverified dependencies | Předpokládá instalované tools bez checku |
-| GEN-10 | MEDIUM | No progressive disclosure | Vše v jednom souboru |
-| GEN-11 | MEDIUM | Missing examples | Chybí input/output příklady |
-| GEN-12 | HIGH | Scripts punt errors | Skripty selhávají bez vysvětlení |
-| GEN-13 | LOW | Magic constants | Hardcoded hodnoty bez vysvětlení |
+### DK — Domain Knowledge (6)
+| ID | Severity | Název |
+|---|---|---|
+| DK-1 | HIGH | Actor selection ambiguity |
+| DK-2 | MED | Output variability |
+| DK-3 | MED | Unrealistic expectations |
+| DK-4 | MED | Time-sensitive content |
+| DK-5 | MED | No scheduling pattern |
+| DK-6 | HIGH | Missing domain caveats |
 
-### APF — Apify platform pasti (11 kategorií)
+### BP — Best Practices (8) — static linter, no API
+| ID | Severity | Název |
+|---|---|---|
+| BP-1 | HIGH | Token budget exceeded (>500 lines) |
+| BP-2 | MED | Poor description |
+| BP-3 | LOW | Deep reference nesting |
+| BP-4 | LOW | Inconsistent terminology |
+| BP-5 | MED | No progressive disclosure |
+| BP-6 | LOW | Magic constants |
+| BP-7 | MED | Duplication between SKILL.md and references |
+| BP-8 | MED | Missing "when to read" guidance |
 
-| ID | Severity | Název | Co testuje |
-|---|---|---|---|
-| APF-1 | CRITICAL | Path resolution | Skill path nefunguje across setups |
-| APF-2 | HIGH | Schema drift | Actor schéma se změní, skill má zastaralé příklady |
-| APF-3 | HIGH | Expected tool not available | Skill předpokládá tool (mcpc, CLI, MCP server) který není dostupný |
-| APF-4 | HIGH | Input validation gaps | Destructive defaults, chybí min/max limity |
-| APF-5 | HIGH | Actor selection ambiguity | Víc actorů pro stejný úkol, žádná guidance |
-| APF-6 | MEDIUM | No resource budgeting | Chybí memory, timeout, concurrency, cost guidance |
-| APF-7 | MEDIUM | Run observability | Chybí debugging guidance — logy, konzole |
-| APF-8 | MEDIUM | Auth management | Token/OAuth anti-patterns |
-| APF-9 | LOW | Output variability | Různé actory vrací různé tvary dat |
-| APF-10 | MEDIUM | No scheduling pattern | Jen one-shot, ne recurring use cases |
-| APF-11 | MEDIUM | Multi-actor orchestration | Chybí řetězení actorů guidance |
+### APF — Apify Platform Awareness (11)
+| ID | Severity | Název |
+|---|---|---|
+| APF-1 | CRIT | Path resolution |
+| APF-2 | HIGH | Schema drift |
+| APF-3 | HIGH | Expected tool not available |
+| APF-4 | HIGH | Input schema gotchas |
+| APF-5 | MED | No resource budgeting |
+| APF-6 | MED | Run observability |
+| APF-7 | MED | Output storage confusion |
+| APF-8 | MED | Store search mismatch |
+| APF-9 | LOW | Actor metadata ignorance |
+| APF-10 | MED | Proxy unawareness |
+| APF-11 | MED | Multi-actor orchestration gap |
+
+### SEC — Security (2)
+| ID | Severity | Název |
+|---|---|---|
+| SEC-1 | HIGH | Auth anti-patterns |
+| SEC-4 | MED | Credential exposure |
 
 ## Stack
 
@@ -103,24 +133,26 @@ python3 sim.py -c 5                # Zvýšit concurrency (default 3)
 
 ## Project Structure
 
-- `sim.py`, `sim_core.py` — CLI tool (Python)
+- `sim.py`, `sim_core.py`, `bp_linter.py` — CLI tool (Python)
 - `server/` — FastAPI backend
 - `web/` — React frontend (Vite)
   - `web/src/components/` — shared components
   - `web/src/pages/` — route pages
   - `web/src/api/` — API client
   - `web/src/hooks/` — React hooks
-- `scenarios/` — YAML test scenarios
+- `scenarios/` — YAML test scenarios (4 files by category: wf, dk, apf, sec)
 - `design-system/` — @apify/ui-library reference docs
 - `skills/` — cloned agent-skills repo (gitignored subdir)
 - `reports/` — generated reports (gitignored)
 
 ## Config Management
 
-- No .env files currently used
-- Backend port: 8420 (hardcoded in Makefile/vite proxy)
-- Frontend dev server: 5173 (Vite default)
-- Vite proxy: /api → http://127.0.0.1:8420
+- Ports configured via `.env` (gitignored), template in `.env.example`
+- `BACKEND_PORT` — FastAPI/uvicorn port (default: 8420)
+- `FRONTEND_PORT` — Vite dev server port (default: 5173)
+- Vite proxy: /api → http://127.0.0.1:$BACKEND_PORT
+- CORS: automatically allows http://localhost:$FRONTEND_PORT + http://127.0.0.1:$FRONTEND_PORT
+- Makefile, vite.config.ts, server/main.py all read from `.env`
 
 ## Dependencies
 

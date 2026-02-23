@@ -1,0 +1,11 @@
+domain: influencer-discovery
+target_skill: apify-influencer-discovery
+
+scenarios:
+  - id: inf-1
+    name: "TikTok micro-influencer discovery — sustainable fashion"
+    prompt: "Find the top 50 micro-influencers in sustainable fashion on TikTok with at least 10K followers and high engagement rates"
+
+  - id: inf-2
+    name: "Instagram beauty influencer discovery — Korean skincare"
+    prompt: "Discover beauty influencers on Instagram who have posted about Korean skincare products in the last 30 days — I need their handle, follower count, and average engagement"

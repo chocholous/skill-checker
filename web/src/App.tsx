@@ -9,9 +9,9 @@ import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { createGlobalStyle } from "styled-components";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
+import { Heatmap } from "./pages/Heatmap";
 import { ReportDetail } from "./pages/ReportDetail";
 import { Reports } from "./pages/Reports";
-import { Run } from "./pages/Run";
 import { ScenarioDetail } from "./pages/ScenarioDetail";
 import { Scenarios } from "./pages/Scenarios";
 
@@ -78,9 +78,10 @@ function App() {
 					<Routes>
 						<Route element={<Layout />}>
 							<Route index element={<Dashboard />} />
+							<Route path="heatmap" element={<Heatmap />} />
+							<Route path="heatmap/:domain" element={<Heatmap />} />
 							<Route path="scenarios" element={<Scenarios />} />
 							<Route path="scenarios/:id" element={<ScenarioDetail />} />
-							<Route path="run" element={<Run />} />
 							<Route path="reports" element={<Reports />} />
 							<Route path="reports/:filename" element={<ReportDetail />} />
 						</Route>

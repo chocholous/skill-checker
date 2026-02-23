@@ -1,0 +1,11 @@
+domain: market-research
+target_skill: apify-market-research
+
+scenarios:
+  - id: mr-1
+    name: "EV charging station market research — Europe"
+    prompt: "Research the electric vehicle charging station market in Europe — scrape data from major providers (ChargePoint, Ionity, Tesla) and compare coverage, pricing, and availability"
+
+  - id: mr-2
+    name: "Project management tools feature comparison"
+    prompt: "Gather public customer reviews for the top 10 project management tools and create a feature comparison matrix with sentiment scores"

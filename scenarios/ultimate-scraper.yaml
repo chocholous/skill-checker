@@ -1,0 +1,15 @@
+domain: ultimate-scraper
+target_skill: apify-ultimate-scraper
+
+scenarios:
+  - id: us-1
+    name: "Instagram scraping — Nike top posts"
+    prompt: "Scrape top 10 Instagram posts for Nike"
+
+  - id: us-2
+    name: "Google Maps restaurants — path resolution and tool availability"
+    prompt: "Scrape the top 100 Google Maps restaurants in Prague with ratings and phone numbers"
+
+  - id: us-3
+    name: "Geo-restricted scraping — amazon.co.jp Japan pricing"
+    prompt: "Scrape product prices from amazon.co.jp — I need Japan-specific pricing that differs from US store"

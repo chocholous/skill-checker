@@ -1,6 +1,12 @@
 .DEFAULT_GOAL := help
 .PHONY: help setup test build dev dev-backend dev-frontend lint run update-skills worktree worktree-remove sync-workspace
 
+# Load port config from .env (with defaults)
+-include .env
+export
+BACKEND_PORT ?= 8420
+FRONTEND_PORT ?= 5173
+
 help: ## Show available targets
 	@printf "\n  Skill Checker — available targets:\n\n"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -33,17 +39,25 @@ test: ## Run pytest + sim.py dry-run + frontend lint
 build: ## Build frontend for production
 	cd web && npm run build
 
-dev: ## Start backend + frontend dev servers
-	@printf "Starting backend (:8420) and frontend (:5173)...\n"
-	.venv/bin/uvicorn server.main:app --reload --host 127.0.0.1 --port 8420 & \
-	cd web && npm run dev & \
+_check-venv:
+	@.venv/bin/python -c "import fastapi" 2>/dev/null || \
+		(printf "\033[31mError: venv is missing or broken. Run 'make setup' first.\033[0m\n" && exit 1)
+
+_check-node:
+	@test -d web/node_modules || \
+		(printf "\033[31mError: node_modules missing. Run 'make setup' first.\033[0m\n" && exit 1)
+
+dev: _check-venv _check-node ## Start backend + frontend dev servers
+	@printf "Starting backend (:$(BACKEND_PORT)) and frontend (:$(FRONTEND_PORT))...\n"
+	.venv/bin/uvicorn server.main:app --reload --host 127.0.0.1 --port $(BACKEND_PORT) & \
+	cd web && npx vite --port $(FRONTEND_PORT) & \
 	wait
 
-dev-backend: ## Start backend only
-	.venv/bin/uvicorn server.main:app --reload --host 127.0.0.1 --port 8420
+dev-backend: _check-venv ## Start backend only
+	.venv/bin/uvicorn server.main:app --reload --host 127.0.0.1 --port $(BACKEND_PORT)
 
-dev-frontend: ## Start frontend only
-	cd web && npm run dev
+dev-frontend: _check-node ## Start frontend only
+	cd web && npx vite --port $(FRONTEND_PORT)
 
 lint: ## Run frontend linter
 	cd web && npm run lint

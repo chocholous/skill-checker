@@ -1,0 +1,11 @@
+domain: content-analytics
+target_skill: apify-content-analytics
+
+scenarios:
+  - id: ca-1
+    name: "TechCrunch content strategy analysis"
+    prompt: "Analyze the content strategy of TechCrunch — what topics get the most engagement, what's the publishing frequency, and what content formats perform best?"
+
+  - id: ca-2
+    name: "Competitor blog SEO keyword analysis"
+    prompt: "Track how our competitor's blog content ranks for our target SEO keywords — scrape their top 50 blog posts and analyze keyword density and backlink profiles"

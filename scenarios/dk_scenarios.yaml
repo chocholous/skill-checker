@@ -1,0 +1,36 @@
+# DK — Domain Knowledge scenarios
+# Tests: actor selection, output variability, unrealistic expectations, time-sensitivity, scheduling, domain caveats
+
+category: DK
+default_models: [sonnet, opus, haiku]
+
+scenarios:
+  - id: dk-tiktok-ambiguity
+    name: "TikTok actor ambiguity"
+    target_skill: apify-trend-analysis
+    prompt: "Track rising TikTok trends about sustainable fashion over the past 7 days"
+
+  - id: dk-review-variability
+    name: "Review output variability across platforms"
+    target_skill: apify-brand-reputation-monitoring
+    prompt: "Aggregate all reviews for Hilton Hotels across Google Maps, TripAdvisor, and Booking.com, then give me a sentiment breakdown"
+
+  - id: dk-audience-unrealistic
+    name: "Audience demographics — unrealistic expectations"
+    target_skill: apify-mcpc
+    prompt: "Analyze the audience demographics and engagement quality of @nike on Instagram — I need a CSV with follower segments by engagement level"
+
+  - id: dk-monitoring-scheduling
+    name: "Brand monitoring — no scheduling pattern"
+    target_skill: apify-mcpc
+    prompt: "Set up weekly monitoring for reviews about 'Grand Hotel Prague' across Google Maps, Booking.com and TripAdvisor — I want only NEW reviews each week with sentiment scores"
+
+  - id: dk-lead-gdpr
+    name: "Lead generation — GDPR caveats"
+    target_skill: apify-lead-generation
+    prompt: "Scrape all LinkedIn profiles of CTOs at fintech startups in Berlin and extract their email addresses for cold outreach"
+
+  - id: dk-tiktok-volatile
+    name: "Volatile TikTok data — time sensitivity"
+    target_skill: apify-mcpc
+    prompt: "What topics are trending on TikTok right now in the Czech beauty niche? I need data from the last 24 hours to plan content for tomorrow"

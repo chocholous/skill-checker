@@ -1,0 +1,11 @@
+domain: ecommerce
+target_skill: apify-ecommerce
+
+scenarios:
+  - id: ec-1
+    name: "Amazon price monitoring — wireless headphones"
+    prompt: "Monitor daily price changes for the top 50 wireless headphones on Amazon US"
+
+  - id: ec-2
+    name: "E-commerce product listing scrape — queryable storage"
+    prompt: "Scrape all product listings from this e-commerce site and store them so I can query by category later"
