@@ -17,6 +17,16 @@ SKILL.md + test prompt
 
 Each scenario pairs a **SKILL.md** file with a **test prompt** simulating a real user request. The tool sends both to Claude models via `claude -p`, then analyzes the response for **complexities** — gaps, missing guidance, and potential failures — classified into GEN (general skill quality) and APF (Apify platform pitfalls) categories.
 
+## Prerequisites
+
+| Tool | Version | Check |
+|---|---|---|
+| Python | 3.13+ | `python3.13 --version` |
+| Node.js | 20+ | `node --version` |
+| Claude CLI | latest | `claude --version` |
+
+Claude CLI is part of [Claude Code](https://claude.ai/claude-code). The tool uses `claude -p` to send prompts to models.
+
 ## Quick Start
 
 ```bash
@@ -54,6 +64,8 @@ python3 sim.py -c 5                  # Full run, concurrency 5
 
 Default models: `sonnet`, `opus`, `haiku`.
 
+Run from terminal, **not** from within a Claude Code session (`claude -p` nesting doesn't work).
+
 ## Web UI
 
 The web interface provides:
@@ -63,9 +75,45 @@ The web interface provides:
 - **Scenario Editor** — browse and edit scenario YAML files
 - **Report Viewer** — view Markdown/JSON reports with filtering
 
+### Development
+
 ```bash
 make dev    # backend :8420 + frontend :5173
 ```
+
+### Production build
+
+```bash
+make build
+```
+
+Builds the frontend into `web/dist/`.
+
+## Configuration
+
+### skills_manifest.yaml
+
+The manifest maps skill names to paths of SKILL.md files. Skills from `apify/agent-skills` are cloned into `skills/` by `make setup` and use relative paths. Local skills (e.g. `apify-mcpc`) use paths within the project.
+
+```yaml
+skills:
+  # From cloned agent-skills repo
+  apify-audience-analysis:
+    path: skills/skills/apify-audience-analysis/SKILL.md
+    category: dispatcher
+
+  # Local skill
+  apify-mcpc:
+    path: apify-mcpc-plugin/skills/apify-mcpc/SKILL.md
+    category: mcpc-plugin
+```
+
+### Adding a new skill
+
+1. If the skill is in `apify/agent-skills` — run `make update-skills`, then add an entry with the relative path
+2. If the skill is local — add an entry pointing to its path within this repo
+3. Create scenario(s) in `scenarios/` that reference the skill by name (`target_skill: my-skill`)
+4. Verify with `python3 sim.py --list`
 
 ## Project Structure
 
@@ -121,8 +169,35 @@ Path resolution, schema drift, tool availability, input validation, actor select
 
 See [CLAUDE.md](CLAUDE.md) for the full taxonomy tables.
 
-## Links
+## Troubleshooting
 
-- [SETUP.md](SETUP.md) — detailed installation and configuration guide
-- [CLAUDE.md](CLAUDE.md) — project architecture, taxonomy, and contributor instructions
-- [apify/agent-skills](https://github.com/apify/agent-skills) — upstream SKILL.md repository
+### `claude: command not found`
+
+Claude CLI must be installed and on your PATH. Install via [Claude Code](https://claude.ai/claude-code), then verify:
+
+```bash
+which claude
+claude --version
+```
+
+### Path errors in skills_manifest.yaml
+
+All paths must point to existing files. If `skills/` is missing, run `make setup`. Verify:
+
+```bash
+python3 sim.py --dry-run
+```
+
+### venv activation issues
+
+The Makefile uses `.venv/bin/python` directly, so manual activation is not required. If you want to run commands manually:
+
+```bash
+source .venv/bin/activate
+python sim.py --list
+```
+
+### Port conflicts
+
+- Backend default: **8420**. Change via: `uvicorn server.main:app --port <PORT>`
+- Frontend default: **5173**. Vite auto-increments if the port is busy.

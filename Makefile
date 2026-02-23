@@ -25,7 +25,8 @@ update-skills: ## Pull latest agent-skills into skills/
 		printf "skills/ not found — run 'make setup' first.\n"; exit 1; \
 	fi
 
-test: ## Run sim.py dry-run + frontend lint
+test: ## Run pytest + sim.py dry-run + frontend lint
+	.venv/bin/python -m pytest tests/ -v
 	.venv/bin/python sim.py --dry-run
 	cd web && npm run lint
 
