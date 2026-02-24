@@ -1,0 +1,22 @@
+{
+	"name": "skill-checker",
+	"owner": {
+		"name": "chocholous",
+		"url": "https://github.com/chocholous"
+	},
+	"metadata": {
+		"description": "Skill Checker marketplace — plugins for Claude Code",
+		"version": "1.0.0"
+	},
+	"plugins": [
+		{
+			"name": "apify-mcpc",
+			"source": "./plugins/apify-mcpc",
+			"skills": "./skills",
+			"description": "Finds, evaluates, and runs Apify Actors using the mcpc CLI. Searches Apify Store, compares Actors by stats and ratings, reads input schemas, runs Actors, and retrieves results. Covers 9 marketing intelligence use cases with domain-specific guidance.",
+			"keywords": ["apify", "mcpc", "web-scraping", "actors"],
+			"category": "data-extraction",
+			"version": "1.3.1"
+		}
+	]
+}
