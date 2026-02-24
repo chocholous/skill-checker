@@ -59,16 +59,18 @@ plugins/apify-mcpc/
 │       ├── SKILL.md             # Main skill (workflow, mcpc reference)
 │       ├── scripts/
 │       │   └── check_apify.sh   # Prerequisite check
-│       └── use-cases/
-│           ├── audience-analysis.md
-│           ├── brand-monitoring.md
-│           ├── competitor-intelligence.md
-│           ├── content-analytics.md
-│           ├── influencer-discovery.md
-│           ├── lead-generation.md
-│           ├── market-research.md
-│           ├── trend-analysis.md
-│           └── universal-scraping.md
+│       └── references/
+│           ├── issue-reporting.md   # Issue reporting template
+│           └── use-cases/
+│               ├── audience-analysis.md
+│               ├── brand-monitoring.md
+│               ├── competitor-intelligence.md
+│               ├── content-analytics.md
+│               ├── influencer-discovery.md
+│               ├── lead-generation.md
+│               ├── market-research.md
+│               ├── trend-analysis.md
+│               └── universal-scraping.md
 ├── LICENSE                      # Apache 2.0
 └── README.md
 ```

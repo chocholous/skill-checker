@@ -1,6 +1,6 @@
 {
 	"name": "apify-mcpc",
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"description": "Finds, evaluates, and runs Apify Actors using the mcpc CLI. Covers 9 marketing intelligence use cases with domain-specific guidance.",
 	"author": {
 		"name": "Apify Technologies",

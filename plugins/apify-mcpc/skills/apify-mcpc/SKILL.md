@@ -1,7 +1,7 @@
 ---
 name: apify-mcpc
 description: "Finds, evaluates, and runs Apify Actors using the mcpc CLI. Searches Apify Store, compares Actors by stats and ratings, reads input schemas to build correct inputs, runs Actors via call-actor, and retrieves results. Covers 9 marketing intelligence use cases (audience analysis, brand monitoring, competitor intelligence, content analytics, influencer discovery, lead generation, market research, trend analysis, universal scraping) with domain-specific Actor suggestions and gotchas. Use when user wants to scrape data, extract information from websites, run automation, find tools on Apify platform, or search Apify/Crawlee documentation. Do NOT use for developing new Actors (use apify-actor-development skill instead)."
-allowed-tools: Bash(mcpc *), Bash(jq *), Read, Grep, Glob
+allowed-tools: Bash(mcpc *), Bash(jq *), Bash(gh issue *), Read, Grep, Glob
 argument-hint: "[use-case or search query]"
 ---
 
@@ -28,6 +28,21 @@ mcpc version: !`mcpc --version 2>/dev/null || echo "NOT INSTALLED"`
 Active sessions:
 !`mcpc 2>&1 | grep -E '(@apify|@apify-docs|mcp.apify.com)' || echo "No active sessions"`
 
+## User-Agent Tracking
+
+**ALWAYS include the `-H` header in ALL `mcpc @apify` and `mcpc @apify-docs` calls** for Apify usage analytics (same pattern as `run_actor.js` User-Agent in other Apify skills):
+
+```
+-H "User-Agent: apify-agent-skills/apify-mcpc-1.3.0/<action>"
+```
+
+Replace `<action>` with a short label describing the call: `search`, `fetch_details`, `call_actor`, `get_output`, `get_run`, `rag_browser`, `search_docs`, `fetch_docs`.
+
+Example:
+```bash
+mcpc -H "User-Agent: apify-agent-skills/apify-mcpc-1.3.0/search" @apify tools-call search-actors keywords:="instagram"
+```
+
 ## mcpc CLI Reference
 
 Available tools and arguments (for building correct mcpc calls):
@@ -39,15 +54,15 @@ When possible, match the user's intent to a use case. Each file has suggested Ac
 
 | Use Case | File | When |
 |---|---|---|
-| Audience Analysis | [audience-analysis.md](use-cases/audience-analysis.md) | Demographics, follower behavior, engagement quality |
-| Brand Monitoring | [brand-monitoring.md](use-cases/brand-monitoring.md) | Reviews, ratings, sentiment, brand mentions |
-| Competitor Intelligence | [competitor-intelligence.md](use-cases/competitor-intelligence.md) | Competitor strategies, ads, pricing, positioning |
-| Content Analytics | [content-analytics.md](use-cases/content-analytics.md) | Engagement metrics, campaign ROI, content performance |
-| Influencer Discovery | [influencer-discovery.md](use-cases/influencer-discovery.md) | Find influencers, verify authenticity, partnerships |
-| Lead Generation | [lead-generation.md](use-cases/lead-generation.md) | B2B/B2C leads, contact enrichment, prospecting |
-| Market Research | [market-research.md](use-cases/market-research.md) | Market conditions, pricing, geographic opportunities |
-| Trend Analysis | [trend-analysis.md](use-cases/trend-analysis.md) | Emerging trends, viral content, content strategy |
-| Universal Scraping | [universal-scraping.md](use-cases/universal-scraping.md) | General-purpose scraping, no specific use case |
+| Audience Analysis | [audience-analysis.md](references/use-cases/audience-analysis.md) | Demographics, follower behavior, engagement quality |
+| Brand Monitoring | [brand-monitoring.md](references/use-cases/brand-monitoring.md) | Reviews, ratings, sentiment, brand mentions |
+| Competitor Intelligence | [competitor-intelligence.md](references/use-cases/competitor-intelligence.md) | Competitor strategies, ads, pricing, positioning |
+| Content Analytics | [content-analytics.md](references/use-cases/content-analytics.md) | Engagement metrics, campaign ROI, content performance |
+| Influencer Discovery | [influencer-discovery.md](references/use-cases/influencer-discovery.md) | Find influencers, verify authenticity, partnerships |
+| Lead Generation | [lead-generation.md](references/use-cases/lead-generation.md) | B2B/B2C leads, contact enrichment, prospecting |
+| Market Research | [market-research.md](references/use-cases/market-research.md) | Market conditions, pricing, geographic opportunities |
+| Trend Analysis | [trend-analysis.md](references/use-cases/trend-analysis.md) | Emerging trends, viral content, content strategy |
+| Universal Scraping | [universal-scraping.md](references/use-cases/universal-scraping.md) | General-purpose scraping, no specific use case |
 
 **Important**: Actor tables in use-case files are **suggestions, not closed lists**. In case of problems use `search-actors` for the latest options.
 
@@ -323,6 +338,7 @@ Check the use-case file for suggested follow-up workflows after presenting resul
    - "usage hard limit exceeded" → user's Apify plan limit, inform the user
 3. Retry from the appropriate step
 4. After 2 failed retries, tell the user what's happening and ask for guidance
+5. **If the problem is structural** (skill docs wrong, mcpc behavior changed, Actor from use-case file missing/deprecated, response structure differs from documented) — this is a skill bug, not a user error. Read [issue-reporting.md](references/issue-reporting.md) and offer to report it. ALWAYS ask user for consent before creating an issue.
 
 ## How to Read Input Schema
 

@@ -6,7 +6,7 @@ errors=0
 
 # User-Agent for tracking skill usage in Apify analytics (mirrors run_actor.js pattern)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_JSON="$SCRIPT_DIR/../../.claude-plugin/plugin.json"
+PLUGIN_JSON="$SCRIPT_DIR/../../../.claude-plugin/plugin.json"
 if [ -f "$PLUGIN_JSON" ]; then
   if command -v jq &>/dev/null; then
     PLUGIN_VERSION=$(jq -r '.version // "unknown"' "$PLUGIN_JSON" 2>/dev/null || echo "unknown")
@@ -18,9 +18,6 @@ else
   PLUGIN_VERSION="unknown"
 fi
 USER_AGENT="apify-agent-skills/apify-mcpc-${PLUGIN_VERSION}"
-
-# Non-blocking usage ping (best-effort, same as run_actor.js User-Agent tracking)
-curl -sf -o /dev/null -A "${USER_AGENT}/check" "https://api.apify.com/v2/store?limit=1" &>/dev/null &
 
 # 1. Check mcpc is installed
 if command -v mcpc &>/dev/null; then
@@ -61,5 +58,8 @@ if [ "$errors" -gt 0 ]; then
   exit 1
 fi
 
+# Usage ping with User-Agent tracking (best-effort, non-blocking)
+mcpc -H "User-Agent: ${USER_AGENT}/check" @apify ping &>/dev/null &
+
 echo ""
-echo "Ready to use mcpc-apify skill."
+echo "Ready to use mcpc-apify skill. (UA: ${USER_AGENT})"
