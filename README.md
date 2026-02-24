@@ -1,118 +1,42 @@
 # Skill Checker
 
-**Test how well your SKILL.md holds up against real user prompts — before users find the gaps for you.**
+Test how well your SKILL.md holds up against real user prompts — before users find the gaps for you.
 
-Skill Checker is a CLI + Web tool that sends [Claude Code](https://claude.ai/claude-code) skills (SKILL.md files) through simulated user scenarios and produces detailed quality reports. It catches missing guidance, edge cases, and platform-specific pitfalls across 37 checks in 5 categories.
-
-Built primarily to test [Apify](https://apify.com) agent skills — including the **apify-mcpc** plugin — but the framework works for any SKILL.md that follows the Claude Code skill format.
-
-## Table of contents
-
-- [How it works](#how-it-works)
-- [The apify-mcpc plugin](#the-apify-mcpc-plugin)
-- [Prerequisites](#prerequisites)
-- [Quick start](#quick-start)
-- [CLI usage](#cli-usage)
-- [Web UI](#web-ui)
-- [What gets tested (13 skills)](#what-gets-tested-13-skills)
-- [Project structure](#project-structure)
-- [Configuration](#configuration)
-- [Makefile targets](#makefile-targets)
-- [Tech stack](#tech-stack)
-- [Troubleshooting](#troubleshooting)
-- [Related documentation](#related-documentation)
-- [License](#license)
+Sends skills + simulated scenarios to Claude via `claude -p`, identifies **complexities** (gaps, ambiguities, failures) scored by severity across 5 categories, and produces Markdown + JSON reports.
 
 ## How it works
 
 ```
-SKILL.md  +  test scenario (YAML)
-               |
-               v
-         claude -p  (sends skill + prompt to Claude)
-               |
-               v
-       Markdown + JSON report
-       with scored complexities
+SKILL.md  +  scenario (YAML)
+               │
+               ▼
+         claude -p  (skill + prompt → model)
+               │
+               ▼
+       Report: scored complexities
+       (Markdown + JSON)
 ```
 
-Each scenario pairs a SKILL.md file with a prompt that simulates a real user request. The tool sends both to Claude via `claude -p`, then the model identifies **complexities** — gaps, ambiguities, and potential failures — scored by severity (LOW → CRITICAL) across 5 categories:
-
-| Category | What it checks | Method |
+| Category | Checks | Method |
 |---|---|---|
 | **WF** — Workflow | Completeness, feedback loops, scope detection | Claude audit |
-| **DK** — Domain Knowledge | Actor selection, edge cases, realistic expectations | Claude audit |
-| **BP** — Best Practices | Token budget, naming, progressive disclosure | Static linter (free) |
+| **DK** — Domain Knowledge | Actor selection, edge cases, expectations | Claude audit |
+| **BP** — Best Practices | Token budget, naming, progressive disclosure | Static linter |
 | **APF** — Apify Platform | Schema drift, tool availability, input gotchas | Claude audit |
 | **SEC** — Security | Auth patterns, credential exposure | Claude audit |
-
-## The apify-mcpc plugin
-
-The repo includes a **Claude Code plugin** ([`plugins/apify-mcpc/`](plugins/apify-mcpc/README.md)) that gives Claude the ability to find, evaluate, and run [Apify Actors](https://apify.com/store) through the [mcpc CLI](https://www.npmjs.com/package/@apify/mcpc).
-
-**What it does:**
-
-- Searches Apify Store for the right Actor for any scraping/automation task
-- Compares Actors by stats, ratings, maintenance status, and pricing
-- Reads input schemas to build correct Actor inputs
-- Runs Actors with mandatory user confirmation gates (no surprise executions)
-- Includes 9 domain-specific use-case guides (audience analysis, lead generation, brand monitoring, ...)
-
-**The 7-step skill workflow:**
-
-1. **Search** — Find candidate Actors (always at least 2 searches: broad then narrow)
-2. **Fetch details** — Read README, input schema, stats, ratings
-3. **Build input** — Cross-reference schema with README for correct values
-4. **Validate** — Challenge assumptions about identifiers, verify against target service
-5. **Run** — Execute the Actor (test run with limit=1 first when uncertain)
-6. **Verify** — Sanity-check results before presenting (zero results = wrong input, not "no data")
-7. **Get results** — Fetch full dataset with field selection and pagination
-
-Two mandatory gates stop the agent before running:
-- **After Step 2**: Show user the Actor choice + planned input, wait for confirmation
-- **After Step 4**: If any input value is guessed, tell user before running
-
-**Available mcpc tools:**
-
-| Session | Tool | Purpose |
-|---|---|---|
-| `@apify` | `search-actors` | Search Apify Store by keywords |
-| `@apify` | `fetch-actor-details` | Get README, input schema, stats, pricing |
-| `@apify` | `call-actor` | Run an Actor (sync or async) |
-| `@apify` | `get-actor-output` | Fetch dataset results with field selection |
-| `@apify` | `get-actor-run` | Check run status and stats |
-| `@apify` | `apify-slash-rag-web-browser` | Quick web search / URL fetch |
-| `@apify-docs` | `search-apify-docs` | Search Apify/Crawlee documentation |
-| `@apify-docs` | `fetch-apify-docs` | Fetch a specific documentation page |
-
-**Connection modes:**
-- **Full mode** (`@apify`) — requires OAuth (`mcpc mcp.apify.com login`), provides all tools including Actor execution
-- **Docs-only mode** (`@apify-docs`) — no authentication needed, only documentation search and fetch
-
-**User-Agent tracking:** All mcpc calls include a custom `User-Agent` header (`apify-agent-skills/apify-mcpc-<version>/<action>`) for Apify usage analytics, mirroring the pattern used by other Apify agent skills.
-
-See the [plugin README](plugins/apify-mcpc/README.md) for installation, full structure, and more details.
-
-## Prerequisites
-
-| Tool | Version | Check |
-|---|---|---|
-| Python | 3.13+ | `python3.13 --version` |
-| Node.js | 20+ | `node --version` |
-| Claude CLI | latest | `claude --version` |
-
-Claude CLI is part of [Claude Code](https://claude.ai/claude-code). The tool uses `claude -p` (pipe mode) to send prompts to models.
 
 ## Quick start
 
 ```bash
 git clone <repo-url> && cd skill-checker/main
 make setup                          # venv + pip + npm + clone skills
-make test                           # pytest + dry-run + lint smoke test
-python3 sim.py -s dc-1 -m haiku    # run one scenario (cheapest model)
+make test                           # pytest + dry-run + lint
+python3 sim.py -s dc-1 -m haiku    # run one scenario (cheapest)
 ```
 
-> **Note:** Run `sim.py` from a regular terminal, **not** from within a Claude Code session — `claude -p` nesting doesn't work.
+> Run `sim.py` from a regular terminal, **not** from a Claude Code session (`claude -p` nesting doesn't work).
+
+**Prerequisites:** Python 3.13+, Node.js 20+, [Claude CLI](https://claude.ai/claude-code) (`claude -p`).
 
 ## CLI usage
 
@@ -120,134 +44,196 @@ python3 sim.py -s dc-1 -m haiku    # run one scenario (cheapest model)
 python3 sim.py [OPTIONS]
 ```
 
-| Flag | Short | What it does |
+| Flag | Short | Description |
 |---|---|---|
-| `--list` | | List all available scenarios |
-| `--dry-run` | | Preview what would run + cost estimate |
-| `--scenario ID` | `-s` | Run a specific scenario by ID |
-| `--model NAME` | `-m` | Model to use (repeatable for multiple) |
-| `--skill NAME` | | Filter scenarios by target skill |
+| `--list` | | List all scenarios |
+| `--dry-run` | | Preview runs + cost estimate |
+| `--scenario ID` | `-s` | Run specific scenario |
+| `--model NAME` | `-m` | Model override (repeatable) |
+| `--skill NAME` | | Filter by target skill |
 | `--concurrency N` | `-c` | Max parallel calls (default: 3) |
 | `--scored` | | Domain-based heatmap mode |
 | `--domain NAME` | `-d` | Filter scored mode by domain |
 | `--output PATH` | `-o` | Custom output path |
 
-**Common workflows:**
-
 ```bash
-# Explore what's available
+# Explore
 python3 sim.py --list
 python3 sim.py --dry-run
 
-# Run a single scenario quickly
+# Single scenario
 python3 sim.py -s dc-1 -m haiku
 
-# Run all scenarios across two models
+# Multi-model full run
 python3 sim.py -m sonnet -m opus
-
-# Full run with higher concurrency
-python3 sim.py -c 5
 
 # Scored heatmap: each domain × 3 skills
 python3 sim.py --scored
-
-# Scored heatmap for one domain only
 python3 sim.py --scored -d brand-monitoring
 ```
 
 ### Scored mode
 
-In scored mode (`--scored`), each domain scenario automatically runs against 3 skills: the domain specialist + `apify-mcpc` + `apify-ultimate-scraper`. This produces a heatmap showing how different skills handle the same real-world tasks.
+Each domain scenario runs against 3 skills: **specialist + apify-mcpc + ultimate-scraper**. Produces a heatmap comparing how different skills handle the same tasks. Dev domains run only against their specialist.
+
+### Model strategy
+
+Without `--model`, each category uses its default models. With `--model`, it overrides all categories. BP linter always runs statically (no API calls).
+
+| Scenarios | Total |
+|---|---|
+| 23 category scenarios (4 YAML files) + 7 BP linter checks per skill | **52 checks** (~$2-7 full run) |
 
 ## Web UI
 
-A React dashboard for browsing scenarios, viewing reports, and exploring heatmap results.
-
 ```bash
-make dev    # backend on :8420 + frontend on :5173
+make dev    # backend :8420 + frontend :5173
 ```
 
-**Pages:**
+- **Dashboard** — skills, scenarios, recent runs overview
+- **Scenarios** — browse/edit YAML with CodeMirror
+- **Reports** — Markdown/JSON with category filtering
+- **Heatmap** — scored grid (domain × skill), multi-model comparison
 
-- **Dashboard** — overview of skills, scenarios, and recent runs
-- **Scenarios** — browse and edit scenario YAML files with CodeMirror
-- **Reports** — view Markdown/JSON reports with category filtering
-- **Heatmap** — scored analysis grid (domain x skill), multi-model comparison
+Production: `make build` → `web/dist/` served by FastAPI.
 
-For production: `make build` compiles the frontend into `web/dist/`, served by the FastAPI backend.
+## Tested skills (13)
 
-## What gets tested (13 skills)
-
-| Category | Skills | Source |
+| Category | Count | Skills |
 |---|---|---|
-| Dispatcher (9) | audience-analysis, brand-monitoring, competitor-intelligence, content-analytics, influencer-discovery, lead-generation, market-research, trend-analysis, ultimate-scraper | [apify/agent-skills](https://github.com/apify/agent-skills) |
-| Dispatcher outlier (1) | ecommerce | [apify/agent-skills](https://github.com/apify/agent-skills) |
-| Dev (2) | actor-development, actorization | [apify/agent-skills](https://github.com/apify/agent-skills) |
-| MCPC plugin (1) | **apify-mcpc** | `plugins/apify-mcpc/` (this repo) |
+| Dispatcher | 9 | audience-analysis, brand-monitoring, competitor-intelligence, content-analytics, influencer-discovery, lead-generation, market-research, trend-analysis, ultimate-scraper |
+| Dispatcher outlier | 1 | ecommerce (inline schema, no mcpc) |
+| Dev | 2 | actor-development, actorization |
+| MCPC plugin | 1 | [apify-mcpc](plugins/apify-mcpc/README.md) |
 
-All skills are registered in `skills_manifest.yaml`. Dispatcher skills are cloned from GitHub by `make setup`; the mcpc plugin lives locally.
+Skills registered in `skills_manifest.yaml`. Dispatcher skills cloned from [apify/agent-skills](https://github.com/apify/agent-skills) via `make setup`.
+
+## apify-mcpc plugin
+
+Claude Code plugin that gives Claude access to Apify Store — search, evaluate, and run Actors through [mcpc CLI](https://www.npmjs.com/package/@apify/mcpc). Includes a 7-step skill workflow with mandatory user confirmation gates and 9 domain-specific use-case guides.
+
+See **[plugins/apify-mcpc/README.md](plugins/apify-mcpc/README.md)** for full details (tools, connection modes, installation).
+
+<details>
+<summary><strong>5-category taxonomy (37 checks)</strong></summary>
+
+### WF — Workflow Quality (6)
+
+| ID | Severity | Check |
+|---|---|---|
+| WF-1 | HIGH | Missing workflow |
+| WF-2 | MED | No feedback loop |
+| WF-3 | HIGH | Wrong degrees of freedom |
+| WF-4 | MED | Missing examples |
+| WF-5 | MED | No scope detection |
+| WF-6 | MED | Linear-only workflow |
+
+### DK — Domain Knowledge (8)
+
+| ID | Severity | Check |
+|---|---|---|
+| DK-1 | HIGH | Actor selection ambiguity |
+| DK-2 | MED | Output variability |
+| DK-3 | MED | Unrealistic expectations |
+| DK-4 | MED | Time-sensitive content |
+| DK-5 | MED | No scheduling pattern |
+| DK-6 | HIGH | Missing domain caveats |
+| DK-7 | HIGH | Input correctness validation |
+| DK-8 | MED | Data completeness awareness |
+
+### BP — Best Practices (8) — static linter
+
+| ID | Severity | Check |
+|---|---|---|
+| BP-1 | HIGH | Token budget exceeded (>500 lines) |
+| BP-2 | MED | Poor description |
+| BP-3 | LOW | Deep reference nesting |
+| BP-4 | LOW | Inconsistent terminology |
+| BP-5 | MED | No progressive disclosure |
+| BP-6 | LOW | Magic constants |
+| BP-7 | MED | Duplication between SKILL.md and references |
+| BP-8 | MED | Missing "when to read" guidance |
+
+### APF — Apify Platform Awareness (13)
+
+| ID | Severity | Check |
+|---|---|---|
+| APF-1 | CRIT | Path resolution |
+| APF-2 | HIGH | Schema drift |
+| APF-3 | HIGH | Expected tool not available |
+| APF-4 | HIGH | Input schema gotchas |
+| APF-5 | MED | No resource budgeting |
+| APF-6 | MED | Run observability |
+| APF-7 | MED | Output storage confusion |
+| APF-8 | MED | Store search mismatch |
+| APF-9 | LOW | Actor metadata ignorance |
+| APF-10 | MED | Proxy unawareness |
+| APF-11 | MED | Multi-actor orchestration gap |
+| APF-12 | MED | Memory and scaling limits |
+| APF-13 | LOW | Parallelization patterns |
+
+### SEC — Security (2)
+
+| ID | Severity | Check |
+|---|---|---|
+| SEC-1 | HIGH | Auth anti-patterns |
+| SEC-4 | MED | Credential exposure |
+
+</details>
 
 ## Project structure
 
 ```
-skill-checker/main/
-  sim.py                    # CLI entry point (async orchestrator)
-  sim_core.py               # Core logic: taxonomy, loaders, execution, reporting
-  bp_linter.py              # Static best-practices linter (no API calls)
-  skills_manifest.yaml      # Skill registry (name → path + category)
-  requirements.txt          # Python deps (FastAPI, PyYAML, uvicorn, ...)
-  Makefile                  # Setup, dev, test, build, run targets
+sim.py                    # CLI entry point (async orchestrator)
+sim_core.py               # Core: taxonomy, loaders, execution, reporting
+bp_linter.py              # Static best-practices linter (no API)
+skills_manifest.yaml      # Skill registry (name → path + category)
+Makefile                  # Setup, dev, test, build targets
 
-  scenarios/                # Test scenarios (YAML)
-    wf_scenarios.yaml       #   Workflow quality (5 scenarios)
-    dk_scenarios.yaml       #   Domain knowledge (6 scenarios)
-    apf_scenarios.yaml      #   Apify platform (10 scenarios)
-    sec_scenarios.yaml      #   Security (2 scenarios)
-    brand-reputation-monitoring.yaml  # Domain-based (scored mode)
-    ...                     #   + 12 more domain files
+scenarios/                # Test scenarios (YAML)
+  wf_scenarios.yaml       #   Workflow (5)
+  dk_scenarios.yaml       #   Domain knowledge (6)
+  apf_scenarios.yaml      #   Apify platform (10)
+  sec_scenarios.yaml      #   Security (2)
+  *.yaml                  #   + domain scenarios (scored mode)
 
-  server/                   # FastAPI backend
-    main.py                 #   App setup, CORS, SPA fallback
-    routers/                #   API endpoints (scenarios, reports, heatmap, ...)
-    services/               #   Business logic (runner, yaml editor)
+server/                   # FastAPI backend
+  main.py                 #   App, CORS, SPA fallback
+  routers/                #   API endpoints
+  services/               #   Business logic
 
-  web/                      # React 19 + Vite + TypeScript frontend
-    src/pages/              #   Dashboard, Scenarios, Reports, Heatmap
-    src/components/         #   HeatmapTable, YamlEditor, MarkdownViewer, ...
-    src/api/                #   Typed API client
-    src/hooks/              #   React hooks
+web/                      # React 19 + Vite + TypeScript
+  src/pages/              #   Dashboard, Scenarios, Reports, Heatmap
+  src/components/         #   HeatmapTable, YamlEditor, MarkdownViewer
+  src/api/                #   Typed API client
 
-  plugins/
-    apify-mcpc/             # Claude Code plugin (skill + use-case guides)
-      .claude-plugin/       #   plugin.json manifest
-      skills/apify-mcpc/    #   SKILL.md + 9 use-case .md files + scripts
+plugins/apify-mcpc/       # Claude Code plugin
+  skills/apify-mcpc/      #   SKILL.md + 9 use-case guides
 
-  skills/                   # Cloned from apify/agent-skills (gitignored)
-  reports/                  # Generated reports (gitignored)
+skills/                   # Cloned apify/agent-skills (gitignored)
+reports/                  # Generated output (gitignored)
 ```
 
 ## Configuration
 
-### Ports
-
-Copy `.env.example` to `.env` and adjust if needed:
+Copy `.env.example` → `.env`:
 
 ```ini
 BACKEND_PORT=8420
 FRONTEND_PORT=5173
 ```
 
-Both Makefile, Vite config, and FastAPI read from `.env`. CORS is auto-configured for the frontend port.
+Makefile, Vite config, and FastAPI all read from `.env`. CORS auto-configured for the frontend port.
 
 ### Adding a new skill
 
-1. Add the SKILL.md path to `skills_manifest.yaml`:
+1. Add to `skills_manifest.yaml`:
    ```yaml
-   my-new-skill:
+   my-skill:
      path: path/to/SKILL.md
-     category: dispatcher   # or: dev, mcpc-plugin, dispatcher-outlier
+     category: dispatcher
    ```
-2. Create scenario(s) in `scenarios/` referencing `target_skill: my-new-skill`
+2. Create scenario(s) in `scenarios/` with `target_skill: my-skill`
 3. Verify: `python3 sim.py --list`
 
 ### Updating upstream skills
@@ -258,71 +244,36 @@ make update-skills    # git pull in skills/
 
 ## Makefile targets
 
-| Target | What it does |
+| Target | Description |
 |---|---|
-| `make help` | Show all targets |
 | `make setup` | Create venv, install Python + Node deps, clone skills |
 | `make test` | pytest + dry-run + ESLint |
 | `make dev` | Start backend + frontend dev servers |
 | `make build` | Build frontend for production |
 | `make lint` | Run ESLint |
-| `make run ARGS="..."` | Run sim.py with args (e.g. `make run ARGS="-s dc-1"`) |
-| `make update-skills` | Pull latest from apify/agent-skills |
-| `make worktree BRANCH=x` | Create a git worktree for parallel work |
+| `make run ARGS="..."` | Run sim.py with args |
+| `make update-skills` | Pull latest agent-skills |
+| `make worktree BRANCH=x` | Create git worktree |
 
 ## Tech stack
 
-- **Backend:** Python 3.13, FastAPI, Uvicorn
-- **Frontend:** React 19, TypeScript 5.9, Vite 7, styled-components, [@apify/ui-library](https://www.npmjs.com/package/@apify/ui-library)
-- **Testing:** pytest (Python), ESLint (TypeScript)
-- **AI:** Claude CLI (`claude -p` pipe mode) — not the API directly
+**Backend:** Python 3.13, FastAPI, Uvicorn | **Frontend:** React 19, TypeScript 5.9, Vite 7, styled-components, [@apify/ui-library](https://www.npmjs.com/package/@apify/ui-library) | **Testing:** pytest, ESLint | **AI:** Claude CLI (`claude -p`)
 
 ## Troubleshooting
 
-### `claude: command not found`
+**`claude: command not found`** — Install [Claude Code](https://claude.ai/claude-code), verify with `which claude`.
 
-Install [Claude Code](https://claude.ai/claude-code), then verify:
+**Path errors in skills_manifest.yaml** — All paths must resolve. Run `make setup` if `skills/` is missing. Check with `python3 sim.py --dry-run`.
 
-```bash
-which claude && claude --version
-```
+**venv issues** — Makefile uses `.venv/bin/python` directly. For manual: `source .venv/bin/activate`.
 
-### Path errors in skills_manifest.yaml
+**Port conflicts** — Change in `.env`, or run manually: `uvicorn server.main:app --port 9000`.
 
-All paths must resolve to existing files. If `skills/` is missing, run `make setup`. Quick check:
+## Related docs
 
-```bash
-python3 sim.py --dry-run
-```
-
-### venv issues
-
-The Makefile calls `.venv/bin/python` directly — no manual activation needed. For manual commands:
-
-```bash
-source .venv/bin/activate
-python sim.py --list
-```
-
-### Port conflicts
-
-Backend defaults to **8420**, frontend to **5173**. Change in `.env` or:
-
-```bash
-# Backend
-uvicorn server.main:app --port 9000
-
-# Frontend (Vite auto-increments if port is busy)
-cd web && npx vite --port 3000
-```
-
-## Related documentation
-
-| Document | Description |
-|---|---|
-| [plugins/apify-mcpc/README.md](plugins/apify-mcpc/README.md) | apify-mcpc plugin — installation, workflow, mcpc tools, connection modes |
-| [web/README.md](web/README.md) | React frontend — Vite setup, ESLint configuration |
-| [skills/README.md](skills/README.md) | Upstream Apify agent skills (cloned by `make setup`) — skill list, installation for other AI tools |
+- [plugins/apify-mcpc/README.md](plugins/apify-mcpc/README.md) — mcpc plugin details
+- [web/README.md](web/README.md) — frontend setup
+- [skills/README.md](skills/README.md) — upstream Apify agent skills
 
 ## License
 
