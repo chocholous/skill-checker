@@ -76,6 +76,7 @@ export interface SkillHealth {
 	unclear_count: number;
 	na_count: number;
 	top_gaps: Array<{ check_id: string; name: string; severity: string }>;
+	models: string[];
 }
 
 export interface HeatmapCheck {
@@ -97,9 +98,13 @@ export interface DomainHeatmapData {
 	is_dev: boolean;
 	scenarios: Array<{ id: string; name: string }>;
 	checks: HeatmapCheck[];
+	models: string[];
 	matrix: Record<
 		string,
-		Record<string, { specialist: CellResult | null; mcpc: CellResult | null }>
+		Record<
+			string,
+			Record<string, { specialist: CellResult | null; mcpc: CellResult | null }>
+		>
 	>;
 }
 
@@ -120,25 +125,21 @@ export interface BPHeatmapData {
 	matrix: Record<string, Record<string, BPCellResult>>;
 }
 
+export interface SkillDetail {
+	skill: string;
+	result: string;
+	evidence: string;
+	summary: string;
+	markdown_response: string;
+}
+
 export interface CellDetail {
 	scenario_id: string;
 	check_id: string;
-	specialist: {
-		skill: string;
-		result: string;
-		evidence: string;
-		summary: string;
-		model: string;
-		markdown_response: string;
-	} | null;
-	mcpc: {
-		skill: string;
-		result: string;
-		evidence: string;
-		summary: string;
-		model: string;
-		markdown_response: string;
-	} | null;
+	models: Record<
+		string,
+		{ specialist: SkillDetail | null; mcpc: SkillDetail | null }
+	>;
 }
 
 export interface ScoredRunStartResponse {
@@ -197,6 +198,7 @@ export const api = {
 	getHeatmapDomain: (domainId: string) =>
 		request<DomainHeatmapData>(`/heatmap/domain/${domainId}`),
 	getHeatmapBP: () => request<BPHeatmapData>("/heatmap/bp"),
+	getHeatmapModels: () => request<string[]>("/heatmap/models"),
 	getHeatmapDetail: (scenarioId: string, checkId: string) =>
 		request<CellDetail>(`/heatmap/detail/${scenarioId}/${checkId}`),
 	startScoredRun: (opts: {

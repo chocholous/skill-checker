@@ -84,6 +84,19 @@ interface SplitCellProps {
 	onClick?: () => void;
 }
 
+function buildSplitTooltip(
+	specialist: CellResult | null,
+	mcpc: CellResult | null,
+): string {
+	const specResult = specialist?.result ?? "na";
+	const mcpcResult = mcpc?.result ?? "na";
+	const parts = [`Specialist: ${specResult.toUpperCase()}`];
+	if (specialist?.summary) parts.push(specialist.summary);
+	parts.push(`MCPC: ${mcpcResult.toUpperCase()}`);
+	if (mcpc?.summary) parts.push(mcpc.summary);
+	return parts.join("\n");
+}
+
 export function SplitHeatmapCell({
 	specialist,
 	mcpc,
@@ -94,8 +107,9 @@ export function SplitHeatmapCell({
 
 	return (
 		<Tooltip
-			content={`Specialist: ${specResult} | MCPC: ${mcpcResult}`}
+			content={buildSplitTooltip(specialist, mcpc)}
 			delayShow={300}
+			size="large"
 		>
 			<SplitCellWrapper onClick={onClick} $clickable={!!onClick}>
 				<HalfCell $color={resultColors[specResult] ?? resultColors.na}>
@@ -137,8 +151,9 @@ export function SingleHeatmapCell({
 
 	return (
 		<Tooltip
-			content={`${result.toUpperCase()}${detail ? `: ${detail}` : ""}`}
+			content={`${result.toUpperCase()}${detail ? `\n${detail}` : ""}`}
 			delayShow={300}
+			size={detail ? "large" : "medium"}
 		>
 			<SingleCellWrapper
 				$color={color}

@@ -144,6 +144,16 @@ DK_CATEGORIES = {
         "severity": "HIGH",
         "description": "Missing rate limits, GDPR, data availability warnings",
     },
+    "DK-7": {
+        "name": "Input correctness validation",
+        "severity": "HIGH",
+        "description": "No guidance to verify inputs yield correct results — e.g. guessed usernames, wrong URL formats, identifiers that resolve to wrong entities; skill should prompt agent to validate inputs against real service behavior before running paid operations",
+    },
+    "DK-8": {
+        "name": "Data completeness awareness",
+        "severity": "MEDIUM",
+        "description": "No guidance for detecting incomplete data — missing pagination handling, truncated results, absent fields; agent may deliver partial data without warning user",
+    },
 }
 
 BP_CATEGORIES = {
@@ -245,6 +255,16 @@ APF_CATEGORIES = {
         "severity": "MEDIUM",
         "description": "Missing actor chaining guidance",
     },
+    "APF-12": {
+        "name": "Memory and scaling limits",
+        "severity": "MEDIUM",
+        "description": "No guidance for Actor memory configuration, large dataset handling, OOM risks; skill should warn about memory limits for high-volume scrapes and suggest appropriate memory/timeout settings",
+    },
+    "APF-13": {
+        "name": "Parallelization patterns",
+        "severity": "LOW",
+        "description": "No guidance for concurrent Actor execution, batching large inputs, or rate limiting across multiple parallel runs; relevant for orchestration and high-throughput use cases",
+    },
 }
 
 SEC_CATEGORIES = {
@@ -268,7 +288,7 @@ ALL_CATEGORIES = {
     **SEC_CATEGORIES,
 }
 
-# Canonical list of 25 non-BP check IDs (used in LLM scoring prompt)
+# Canonical list of 29 non-BP check IDs (used in LLM scoring prompt)
 LLM_CHECK_IDS = sorted(
     [cid for cid in ALL_CATEGORIES if not cid.startswith("BP-")],
     key=lambda x: (x.split("-")[0], int(x.split("-")[1])),
@@ -463,7 +483,7 @@ Your job is to:
 2. Provide a detailed markdown analysis
 3. Score each check as pass/fail/unclear
 
-## Check Taxonomy (25 checks)
+## Check Taxonomy (29 checks)
 
 {_build_scoring_check_reference()}
 
@@ -504,8 +524,8 @@ Rules for scoring:
 - **pass**: The SKILL.md adequately addresses this check for the given prompt
 - **fail**: The SKILL.md has a clear gap or issue for this check
 - **unclear**: Not enough information to determine, or partially addressed
-- You MUST include ALL 25 check IDs in the JSON (WF-1 through WF-6, DK-1 through DK-6, \
-APF-1 through APF-11, SEC-1, SEC-4)
+- You MUST include ALL 29 check IDs in the JSON (WF-1 through WF-6, DK-1 through DK-8, \
+APF-1 through APF-13, SEC-1, SEC-4)
 - The JSON block MUST be the last thing in your response"""
 
 
@@ -965,7 +985,8 @@ def get_target_skills(scenario: Scenario, manifest: dict) -> list[str]:
     """Get target skill(s) for a scenario.
 
     Dev domains → only specialist skill.
-    Others → [specialist, "apify-mcpc"].
+    Others → [specialist, "apify-mcpc", "apify-ultimate-scraper"].
+    Deduplicates: if specialist IS one of the generalists, don't add it twice.
     """
     domain = scenario.domain
     if not domain:
@@ -975,10 +996,12 @@ def get_target_skills(scenario: Scenario, manifest: dict) -> list[str]:
     if domain in DEV_DOMAINS:
         return [specialist]
 
-    # Non-dev: specialist + mcpc (if mcpc exists in manifest)
+    # Non-dev: specialist + generalist skills (mcpc, ultimate-scraper)
+    generalists = ["apify-mcpc", "apify-ultimate-scraper"]
     skills = [specialist]
-    if "apify-mcpc" in manifest:
-        skills.append("apify-mcpc")
+    for g in generalists:
+        if g in manifest and g != specialist:
+            skills.append(g)
     return skills
 
 
@@ -1140,3 +1163,39 @@ def load_latest_scored_report() -> tuple[dict, list[ScoredRun]] | None:
     if not scored_files:
         return None
     return load_scored_report(scored_files[0])
+
+
+def load_all_scored_reports() -> list[tuple[dict, list[ScoredRun]]]:
+    """Load ALL scored_*.json reports, newest first."""
+    if not REPORTS_DIR.exists():
+        return []
+    scored_files = sorted(REPORTS_DIR.glob("scored_*.json"), reverse=True)
+    results = []
+    for f in scored_files:
+        try:
+            results.append(load_scored_report(f))
+        except (json.JSONDecodeError, KeyError):
+            continue
+    return results
+
+
+def merge_scored_runs(
+    all_reports: list[tuple[dict, list[ScoredRun]]],
+) -> tuple[list[str], dict[tuple[str, str, str], ScoredRun]]:
+    """Merge runs from multiple reports. Index by (scenario_id, skill, model).
+
+    For duplicates keeps newest (first in list since reports are newest-first).
+    Returns (sorted_models, index).
+    """
+    index: dict[tuple[str, str, str], ScoredRun] = {}
+    models_set: set[str] = set()
+
+    for _metadata, runs in all_reports:
+        for run in runs:
+            key = (run.scenario_id, run.skill, run.model)
+            if key not in index:
+                index[key] = run
+            models_set.add(run.model)
+
+    sorted_models = sorted(models_set)
+    return sorted_models, index

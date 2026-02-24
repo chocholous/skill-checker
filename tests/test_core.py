@@ -87,7 +87,7 @@ def test_wf_categories_structure():
 
 
 def test_dk_categories_structure():
-    assert len(DK_CATEGORIES) == 6
+    assert len(DK_CATEGORIES) == 8
     for cat_id, cat in DK_CATEGORIES.items():
         assert cat_id.startswith("DK-")
         assert "name" in cat
@@ -105,7 +105,7 @@ def test_bp_categories_structure():
 
 
 def test_apf_categories_structure():
-    assert len(APF_CATEGORIES) == 11
+    assert len(APF_CATEGORIES) == 13
     for cat_id, cat in APF_CATEGORIES.items():
         assert cat_id.startswith("APF-")
         assert "name" in cat
@@ -123,7 +123,7 @@ def test_sec_categories_structure():
 
 
 def test_all_categories_total():
-    assert len(ALL_CATEGORIES) == 33
+    assert len(ALL_CATEGORIES) == 37
 
 
 def test_category_groups():
@@ -315,7 +315,7 @@ def test_dev_excluded_checks():
 
 
 def test_llm_check_ids():
-    assert len(LLM_CHECK_IDS) == 25
+    assert len(LLM_CHECK_IDS) == 29
     for check_id in LLM_CHECK_IDS:
         assert not check_id.startswith("BP-"), f"LLM check '{check_id}' is BP"
         assert check_id in ALL_CATEGORIES, f"LLM check '{check_id}' unknown"
@@ -358,9 +358,11 @@ def test_get_target_skills_non_dev():
     )
     skills = get_target_skills(s, manifest)
     assert "apify-competitor-intelligence" in skills
-    # Non-dev should include mcpc if in manifest
+    # Non-dev should include generalist skills if in manifest
     if "apify-mcpc" in manifest:
         assert "apify-mcpc" in skills
+    if "apify-ultimate-scraper" in manifest:
+        assert "apify-ultimate-scraper" in skills
 
 
 def test_get_target_skills_dev():
@@ -376,6 +378,24 @@ def test_get_target_skills_dev():
     skills = get_target_skills(s, manifest)
     assert "apify-actor-development" in skills
     assert "apify-mcpc" not in skills
+    assert "apify-ultimate-scraper" not in skills
+
+
+def test_get_target_skills_dedup():
+    """When specialist IS a generalist, don't duplicate it."""
+    manifest = load_manifest()
+    s = Scenario(
+        id="t",
+        name="t",
+        prompt="p",
+        target_skill="apify-ultimate-scraper",
+        source_file="t.yaml",
+        domain="ultimate-scraper",
+    )
+    skills = get_target_skills(s, manifest)
+    assert skills.count("apify-ultimate-scraper") == 1
+    if "apify-mcpc" in manifest:
+        assert "apify-mcpc" in skills
 
 
 # --- Scoring ---
@@ -392,7 +412,7 @@ Some analysis text here.
     markdown, checks, risk = parse_scoring_response(raw)
     assert "Analysis" in markdown
     # All 25 LLM checks are returned — 2 from JSON, rest as "unclear"
-    assert len(checks) == 25
+    assert len(checks) == 29
     assert checks["WF-1"].result == "pass"
     assert checks["WF-1"].evidence == "Good workflow"
     assert checks["WF-2"].result == "fail"
@@ -406,7 +426,7 @@ def test_parse_scoring_response_no_json():
     markdown, checks, risk = parse_scoring_response(raw)
     assert markdown == raw
     # All 25 checks are "unclear" as fallback
-    assert len(checks) == 25
+    assert len(checks) == 29
     assert all(c.result == "unclear" for c in checks.values())
     assert risk == "UNKNOWN"
 
@@ -418,7 +438,7 @@ def test_parse_scoring_response_malformed_json():
 ```
 """
     markdown, checks, risk = parse_scoring_response(raw)
-    assert len(checks) == 25
+    assert len(checks) == 29
     assert all(c.result == "unclear" for c in checks.values())
     assert risk == "UNKNOWN"
 

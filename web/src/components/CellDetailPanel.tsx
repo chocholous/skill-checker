@@ -1,16 +1,15 @@
-import { Button, Heading, Text, theme } from "@apify/ui-library";
+import { CopyIcon, CrossIcon, ExpandIcon } from "@apify/ui-icons";
+import { Button, IconButton, Text, theme } from "@apify/ui-library";
 import { useState } from "react";
 import styled from "styled-components";
-import type { CellDetail } from "../api/client";
-import { MarkdownViewer } from "./MarkdownViewer";
+import type { CellDetail, SkillDetail } from "../api/client";
+import { AnalysisModal } from "./AnalysisModal";
+import { SeverityBadge } from "./SeverityBadge";
 
 const Overlay = styled.div`
 	position: fixed;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	background: rgba(0, 0, 0, 0.3);
+	inset: 0;
+	background: ${theme.color.neutral.overlay};
 	z-index: 100;
 `;
 
@@ -33,8 +32,16 @@ const PanelHeader = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: ${theme.space.space16};
+	padding: ${theme.space.space12} ${theme.space.space16};
 	border-bottom: 1px solid ${theme.color.neutral.border};
+	background: ${theme.color.neutral.backgroundMuted};
+`;
+
+const HeaderLeft = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${theme.space.space8};
+	min-width: 0;
 `;
 
 const PanelBody = styled.div`
@@ -43,10 +50,24 @@ const PanelBody = styled.div`
 	padding: ${theme.space.space16};
 `;
 
-const ComparisonGrid = styled.div`
+const ModelSection = styled.div`
+	margin-bottom: ${theme.space.space16};
+	border: 1px solid ${theme.color.neutral.border};
+	border-radius: ${theme.radius.radius8};
+	overflow: hidden;
+`;
+
+const ModelHeader = styled.div`
+	padding: ${theme.space.space8} ${theme.space.space12};
+	background: ${theme.color.neutral.backgroundMuted};
+	border-bottom: 1px solid ${theme.color.neutral.border};
+`;
+
+const SkillGrid = styled.div`
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: ${theme.space.space16};
+	gap: ${theme.space.space12};
+	padding: ${theme.space.space12};
 
 	@media (max-width: 768px) {
 		grid-template-columns: 1fr;
@@ -54,8 +75,8 @@ const ComparisonGrid = styled.div`
 `;
 
 const SkillColumn = styled.div`
-	border: 1px solid ${theme.color.neutral.border};
-	border-radius: ${theme.radius.radius8};
+	border: 1px solid ${theme.color.neutral.separatorSubtle};
+	border-radius: ${theme.radius.radius6};
 	padding: ${theme.space.space12};
 `;
 
@@ -92,11 +113,16 @@ const ResultBadge = styled.span<{ $result: string }>`
 	}};
 `;
 
+const EvidenceWrapper = styled.div`
+	position: relative;
+	margin-top: ${theme.space.space8};
+`;
+
 const EvidenceBox = styled.div`
 	background: ${theme.color.neutral.backgroundMuted};
 	border-radius: ${theme.radius.radius6};
 	padding: ${theme.space.space8};
-	margin-top: ${theme.space.space8};
+	padding-right: ${theme.space.space32};
 	font-size: 1.2rem;
 	line-height: 1.6;
 	white-space: pre-wrap;
@@ -104,20 +130,31 @@ const EvidenceBox = styled.div`
 	overflow-y: auto;
 `;
 
-const ExpandSection = styled.div`
+const CopyButton = styled.div`
+	position: absolute;
+	top: ${theme.space.space4};
+	right: ${theme.space.space4};
+`;
+
+const ActionRow = styled.div`
 	margin-top: ${theme.space.space12};
 	padding-top: ${theme.space.space12};
 	border-top: 1px solid ${theme.color.neutral.separatorSubtle};
 `;
 
-interface SkillResultProps {
-	label: string;
-	data: CellDetail["specialist"];
+interface AnalysisModalState {
+	model: string;
+	skillLabel: string;
+	content: string;
 }
 
-function SkillResult({ label, data }: SkillResultProps) {
-	const [expanded, setExpanded] = useState(false);
+interface SkillResultProps {
+	label: string;
+	data: SkillDetail | null;
+	onOpenAnalysis: (content: string) => void;
+}
 
+function SkillResult({ label, data, onOpenAnalysis }: SkillResultProps) {
 	if (!data) {
 		return (
 			<SkillColumn>
@@ -142,7 +179,7 @@ function SkillResult({ label, data }: SkillResultProps) {
 				color={theme.color.neutral.textMuted}
 				mb="space8"
 			>
-				{data.skill} ({data.model})
+				{data.skill}
 			</Text>
 
 			<div>
@@ -155,23 +192,35 @@ function SkillResult({ label, data }: SkillResultProps) {
 				</Text>
 			)}
 
-			{data.evidence && <EvidenceBox>{data.evidence}</EvidenceBox>}
+			{data.evidence && (
+				<EvidenceWrapper>
+					<EvidenceBox>{data.evidence}</EvidenceBox>
+					<CopyButton>
+						<IconButton
+							Icon={CopyIcon}
+							size="small"
+							title="Copy evidence"
+							onClick={() => {
+								if (data.evidence) {
+									navigator.clipboard.writeText(data.evidence);
+								}
+							}}
+						/>
+					</CopyButton>
+				</EvidenceWrapper>
+			)}
 
 			{data.markdown_response && (
-				<ExpandSection>
+				<ActionRow>
 					<Button
 						variant="tertiary"
 						size="small"
-						onClick={() => setExpanded(!expanded)}
+						LeftIcon={ExpandIcon}
+						onClick={() => onOpenAnalysis(data.markdown_response)}
 					>
-						{expanded ? "Hide full analysis" : "View full analysis"}
+						View full analysis
 					</Button>
-					{expanded && (
-						<div style={{ marginTop: "0.8rem" }}>
-							<MarkdownViewer content={data.markdown_response} />
-						</div>
-					)}
-				</ExpandSection>
+				</ActionRow>
 			)}
 		</SkillColumn>
 	);
@@ -179,31 +228,111 @@ function SkillResult({ label, data }: SkillResultProps) {
 
 interface Props {
 	detail: CellDetail;
+	checkName?: string;
+	checkSeverity?: string;
 	onClose: () => void;
 }
 
-export function CellDetailPanel({ detail, onClose }: Props) {
+export function CellDetailPanel({
+	detail,
+	checkName,
+	checkSeverity,
+	onClose,
+}: Props) {
+	const modelEntries = Object.entries(detail.models ?? {});
+	const [analysisModal, setAnalysisModal] = useState<AnalysisModalState | null>(
+		null,
+	);
+
 	return (
 		<>
 			<Overlay onClick={onClose} />
 			<Panel>
 				<PanelHeader>
-					<div>
-						<Heading type="titleS">
-							{detail.scenario_id} / {detail.check_id}
-						</Heading>
-					</div>
-					<Button variant="tertiary" size="small" onClick={onClose}>
+					<HeaderLeft>
+						<Text type="code" size="small" weight="bold">
+							{detail.check_id}
+						</Text>
+						{checkName && (
+							<Text type="body" size="small" weight="medium">
+								{checkName}
+							</Text>
+						)}
+						{checkSeverity && <SeverityBadge severity={checkSeverity} />}
+						<Text
+							type="body"
+							size="small"
+							color={theme.color.neutral.textMuted}
+						>
+							/ {detail.scenario_id}
+						</Text>
+					</HeaderLeft>
+					<Button
+						variant="tertiary"
+						size="small"
+						LeftIcon={CrossIcon}
+						onClick={onClose}
+					>
 						Close
 					</Button>
 				</PanelHeader>
 				<PanelBody>
-					<ComparisonGrid>
-						<SkillResult label="Specialist" data={detail.specialist} />
-						<SkillResult label="MCPC" data={detail.mcpc} />
-					</ComparisonGrid>
+					{modelEntries.length === 0 && (
+						<Text
+							type="body"
+							size="small"
+							color={theme.color.neutral.textMuted}
+						>
+							No data available
+						</Text>
+					)}
+					{modelEntries.map(([model, data]) => (
+						<ModelSection key={model}>
+							<ModelHeader>
+								<Text type="body" size="small" weight="bold">
+									{model}
+								</Text>
+							</ModelHeader>
+							<SkillGrid>
+								<SkillResult
+									label="Specialist"
+									data={data.specialist}
+									onOpenAnalysis={(content) =>
+										setAnalysisModal({
+											model,
+											skillLabel: "Specialist",
+											content,
+										})
+									}
+								/>
+								<SkillResult
+									label="MCPC"
+									data={data.mcpc}
+									onOpenAnalysis={(content) =>
+										setAnalysisModal({
+											model,
+											skillLabel: "MCPC",
+											content,
+										})
+									}
+								/>
+							</SkillGrid>
+						</ModelSection>
+					))}
 				</PanelBody>
 			</Panel>
+
+			{analysisModal && (
+				<AnalysisModal
+					checkId={detail.check_id}
+					checkName={checkName}
+					severity={checkSeverity}
+					model={analysisModal.model}
+					skillLabel={analysisModal.skillLabel}
+					content={analysisModal.content}
+					onClose={() => setAnalysisModal(null)}
+				/>
+			)}
 		</>
 	);
 }

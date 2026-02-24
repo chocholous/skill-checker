@@ -3,13 +3,13 @@ target_skill: apify-ultimate-scraper
 
 scenarios:
   - id: us-1
-    name: "Instagram scraping — Nike top posts"
-    prompt: "Scrape top 10 Instagram posts for Nike"
+    name: "Multi-actor workflow — coffee shops Maps + Instagram cross-reference"
+    prompt: "Find the top 20 coffee shops in Brno on Google Maps, then scrape their Instagram profiles to compare their social media presence with their Google ratings"
 
   - id: us-2
-    name: "Google Maps restaurants — path resolution and tool availability"
-    prompt: "Scrape the top 100 Google Maps restaurants in Prague with ratings and phone numbers"
+    name: "Cross-platform data merge — Prague vacation rentals"
+    prompt: "Build a database of vacation rentals in Prague — scrape Booking.com listings and cross-reference with Google Maps reviews and TripAdvisor ratings for the same properties"
 
   - id: us-3
-    name: "Geo-restricted scraping — amazon.co.jp Japan pricing"
-    prompt: "Scrape product prices from amazon.co.jp — I need Japan-specific pricing that differs from US store"
+    name: "Apify Store search — niche site without predefined actor"
+    prompt: "Scrape job listings from remoteok.com — I need job titles, companies, salary ranges, and tags. I don't think there's a specific actor for this site"

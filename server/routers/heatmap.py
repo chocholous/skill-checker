@@ -18,9 +18,11 @@ from sim_core import (
     DEV_DOMAINS,
     DOMAIN_SKILL_MAP,
     LLM_CHECK_IDS,
+    load_all_scored_reports,
     load_domain_scenarios,
     load_latest_scored_report,
     load_manifest,
+    merge_scored_runs,
     read_skill,
 )
 from server.services.runner import run_manager, ScoredRunStatus
@@ -57,12 +59,15 @@ def get_domains():
 
 @router.get("/skills")
 def get_skills_health():
-    """Return skill health overview from latest scored report."""
-    latest = load_latest_scored_report()
-    if latest is None:
+    """Return skill health overview from all scored reports (multi-model)."""
+    all_reports = load_all_scored_reports()
+    if not all_reports:
         return []
 
-    _metadata, runs = latest
+    sorted_models, run_index = merge_scored_runs(all_reports)
+
+    # Collect all runs from the merged index
+    all_runs = list(run_index.values())
 
     # Reverse map: skill_name → domain
     skill_to_domain: dict[str, str] = {}
@@ -73,7 +78,9 @@ def get_skills_health():
     skill_stats: dict[str, dict] = {}
     # Track per-check failures for top_gaps
     skill_check_fails: dict[str, dict[str, int]] = {}
-    for run in runs:
+    # Track models per skill
+    skill_models: dict[str, set[str]] = {}
+    for run in all_runs:
         skill = run.skill
         if skill not in skill_stats:
             skill_stats[skill] = {
@@ -83,6 +90,8 @@ def get_skills_health():
                 "na_count": 0,
             }
             skill_check_fails[skill] = {}
+            skill_models[skill] = set()
+        skill_models[skill].add(run.model)
         for check in run.checks:
             if check.result == "pass":
                 skill_stats[skill]["pass_count"] += 1
@@ -129,6 +138,7 @@ def get_skills_health():
                 "unclear_count": stats["unclear_count"],
                 "na_count": stats["na_count"],
                 "top_gaps": top_gaps,
+                "models": sorted(skill_models.get(skill, set())),
             }
         )
     return result
@@ -141,7 +151,7 @@ def get_skills_health():
 
 @router.get("/domain/{domain_id}")
 def get_domain_heatmap(domain_id: str):
-    """Return domain heatmap matrix (Level 2 data)."""
+    """Return domain heatmap matrix with model dimension (Level 2 data)."""
     domain_scenarios = load_domain_scenarios()
     if domain_id not in domain_scenarios:
         raise HTTPException(404, f"Domain '{domain_id}' not found")
@@ -165,63 +175,69 @@ def get_domain_heatmap(domain_id: str):
                 }
             )
 
-    # Load latest scored report
-    latest = load_latest_scored_report()
-    matrix: dict[str, dict[str, dict]] = {}
+    # Load all scored reports and merge
+    all_reports = load_all_scored_reports()
+    sorted_models, run_index = merge_scored_runs(all_reports)
 
-    if latest is not None:
-        _metadata, runs = latest
-        # Index: (scenario_id, skill) -> ScoredRun
-        run_index: dict[tuple[str, str], object] = {}
-        for run in runs:
-            run_index[(run.scenario_id, run.skill)] = run
+    # matrix[scenario_id][check_id][model] = {specialist, mcpc}
+    matrix: dict[str, dict[str, dict[str, dict]]] = {}
 
+    if run_index:
         for scenario in scenarios:
-            scenario_matrix: dict[str, dict] = {}
+            scenario_matrix: dict[str, dict[str, dict]] = {}
             for check_info in checks:
                 check_id = check_info["id"]
-                cell: dict[str, dict | None] = {}
+                model_cells: dict[str, dict] = {}
 
-                # Specialist result
-                specialist_run = run_index.get((scenario.id, specialist))
-                if specialist_run is not None:
-                    specialist_check = next(
-                        (c for c in specialist_run.checks if c.check_id == check_id),
-                        None,
-                    )
-                    if specialist_check:
-                        cell["specialist"] = {
-                            "result": specialist_check.result,
-                            "evidence": specialist_check.evidence,
-                            "summary": specialist_check.summary,
-                        }
-                    else:
-                        cell["specialist"] = None
-                else:
-                    cell["specialist"] = None
+                for model in sorted_models:
+                    cell: dict[str, dict | None] = {}
 
-                # MCPC result (only for non-dev domains)
-                if not is_dev:
-                    mcpc_run = run_index.get((scenario.id, "apify-mcpc"))
-                    if mcpc_run is not None:
-                        mcpc_check = next(
-                            (c for c in mcpc_run.checks if c.check_id == check_id),
+                    # Specialist result
+                    specialist_run = run_index.get((scenario.id, specialist, model))
+                    if specialist_run is not None:
+                        specialist_check = next(
+                            (
+                                c
+                                for c in specialist_run.checks
+                                if c.check_id == check_id
+                            ),
                             None,
                         )
-                        if mcpc_check:
-                            cell["mcpc"] = {
-                                "result": mcpc_check.result,
-                                "evidence": mcpc_check.evidence,
-                                "summary": mcpc_check.summary,
+                        if specialist_check:
+                            cell["specialist"] = {
+                                "result": specialist_check.result,
+                                "evidence": specialist_check.evidence,
+                                "summary": specialist_check.summary,
                             }
+                        else:
+                            cell["specialist"] = None
+                    else:
+                        cell["specialist"] = None
+
+                    # MCPC result (only for non-dev domains)
+                    if not is_dev:
+                        mcpc_run = run_index.get((scenario.id, "apify-mcpc", model))
+                        if mcpc_run is not None:
+                            mcpc_check = next(
+                                (c for c in mcpc_run.checks if c.check_id == check_id),
+                                None,
+                            )
+                            if mcpc_check:
+                                cell["mcpc"] = {
+                                    "result": mcpc_check.result,
+                                    "evidence": mcpc_check.evidence,
+                                    "summary": mcpc_check.summary,
+                                }
+                            else:
+                                cell["mcpc"] = None
                         else:
                             cell["mcpc"] = None
                     else:
                         cell["mcpc"] = None
-                else:
-                    cell["mcpc"] = None
 
-                scenario_matrix[check_id] = cell
+                    model_cells[model] = cell
+
+                scenario_matrix[check_id] = model_cells
             matrix[scenario.id] = scenario_matrix
 
     return {
@@ -230,6 +246,7 @@ def get_domain_heatmap(domain_id: str):
         "is_dev": is_dev,
         "scenarios": [{"id": s.id, "name": s.name} for s in scenarios],
         "checks": checks,
+        "models": sorted_models,
         "matrix": matrix,
     }
 
@@ -290,7 +307,7 @@ def get_bp_matrix():
 
 @router.get("/detail/{scenario_id}/{check_id}")
 def get_cell_detail(scenario_id: str, check_id: str):
-    """Return detailed comparison for a specific scenario/check cell."""
+    """Return detailed comparison for a specific scenario/check cell (per model)."""
     # Validate check_id exists
     if check_id not in ALL_CATEGORIES and check_id not in BP_CATEGORIES:
         raise HTTPException(404, f"Check '{check_id}' not found")
@@ -314,53 +331,74 @@ def get_cell_detail(scenario_id: str, check_id: str):
     is_dev = found_domain in DEV_DOMAINS
     specialist = DOMAIN_SKILL_MAP.get(found_domain, found_scenario.target_skill)
 
-    latest = load_latest_scored_report()
-    specialist_detail: dict | None = None
-    mcpc_detail: dict | None = None
+    all_reports = load_all_scored_reports()
+    sorted_models, run_index = merge_scored_runs(all_reports)
 
-    if latest is not None:
-        _metadata, runs = latest
-        run_index: dict[tuple[str, str], object] = {}
-        for run in runs:
-            run_index[(run.scenario_id, run.skill)] = run
+    # Build per-model results
+    models_detail: dict[str, dict] = {}
 
-        specialist_run = run_index.get((scenario_id, specialist))
+    for model in sorted_models:
+        model_data: dict[str, dict | None] = {}
+
+        specialist_run = run_index.get((scenario_id, specialist, model))
         if specialist_run is not None:
             specialist_check = next(
                 (c for c in specialist_run.checks if c.check_id == check_id),
                 None,
             )
-            specialist_detail = {
+            model_data["specialist"] = {
                 "skill": specialist_run.skill,
                 "result": specialist_check.result if specialist_check else "unclear",
                 "evidence": specialist_check.evidence if specialist_check else "",
                 "summary": specialist_check.summary if specialist_check else "",
-                "model": specialist_run.model,
                 "markdown_response": specialist_run.markdown_response,
             }
+        else:
+            model_data["specialist"] = None
 
         if not is_dev:
-            mcpc_run = run_index.get((scenario_id, "apify-mcpc"))
+            mcpc_run = run_index.get((scenario_id, "apify-mcpc", model))
             if mcpc_run is not None:
                 mcpc_check = next(
                     (c for c in mcpc_run.checks if c.check_id == check_id),
                     None,
                 )
-                mcpc_detail = {
+                model_data["mcpc"] = {
                     "skill": mcpc_run.skill,
                     "result": mcpc_check.result if mcpc_check else "unclear",
                     "evidence": mcpc_check.evidence if mcpc_check else "",
                     "summary": mcpc_check.summary if mcpc_check else "",
-                    "model": mcpc_run.model,
                     "markdown_response": mcpc_run.markdown_response,
                 }
+            else:
+                model_data["mcpc"] = None
+        else:
+            model_data["mcpc"] = None
+
+        # Only include model if it has at least one result
+        if model_data["specialist"] is not None or model_data.get("mcpc") is not None:
+            models_detail[model] = model_data
 
     return {
         "scenario_id": scenario_id,
         "check_id": check_id,
-        "specialist": specialist_detail,
-        "mcpc": mcpc_detail,
+        "models": models_detail,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/heatmap/models
+# ---------------------------------------------------------------------------
+
+
+@router.get("/models")
+def get_models():
+    """Return list of models from all scored reports."""
+    all_reports = load_all_scored_reports()
+    if not all_reports:
+        return []
+    sorted_models, _ = merge_scored_runs(all_reports)
+    return sorted_models
 
 
 # ---------------------------------------------------------------------------

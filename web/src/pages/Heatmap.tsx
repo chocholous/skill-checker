@@ -8,7 +8,7 @@ import { api } from "../api/client";
 import { CellDetailPanel } from "../components/CellDetailPanel";
 import { HeatmapLegend } from "../components/HeatmapLegend";
 import { BPHeatmapTable, DomainHeatmapTable } from "../components/HeatmapTable";
-import { SkillHealthCard } from "../components/SkillHealthCard";
+import { SkillFilterPanel } from "../components/SkillFilterPanel";
 import { useScoredSSE } from "../hooks/useScoredSSE";
 
 const AVAILABLE_MODELS = ["sonnet", "opus", "haiku"];
@@ -20,20 +20,6 @@ const PageHeader = styled.div`
 	align-items: center;
 	justify-content: space-between;
 	margin-bottom: ${theme.space.space16};
-`;
-
-const SkillGrid = styled.div`
-	display: grid;
-	gap: ${theme.space.space16};
-	grid-template-columns: repeat(2, 1fr);
-
-	@media ${theme.device.tablet} {
-		grid-template-columns: repeat(3, 1fr);
-	}
-
-	@media ${theme.device.desktop} {
-		grid-template-columns: repeat(4, 1fr);
-	}
 `;
 
 const TabBar = styled.div`
@@ -99,24 +85,6 @@ const ProgressFill = styled.div<{ $pct: number }>`
 	width: ${(p) => p.$pct}%;
 	background: ${theme.color.primary.background};
 	transition: width 0.3s ease;
-`;
-
-const BackButton = styled.button`
-	border: none;
-	background: none;
-	cursor: pointer;
-	color: ${theme.color.primary.text};
-	font-size: 1.4rem;
-	font-weight: 500;
-	padding: 0;
-	margin-bottom: ${theme.space.space8};
-	display: flex;
-	align-items: center;
-	gap: ${theme.space.space4};
-
-	&:hover {
-		text-decoration: underline;
-	}
 `;
 
 const DomainSummary = styled.div`
@@ -274,22 +242,27 @@ const RunSummary = styled(Text)`
 // --- Page component ---
 
 export function Heatmap() {
-	// urlDomain is the single source of truth for which domain is selected
 	const { domain: urlDomain } = useParams<{ domain?: string }>();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
-	// BP toggle: track domain for which BP was toggled on; auto-resets on domain change
+	// BP toggle
 	const [bpForDomain, setBpForDomain] = useState<string | null>(null);
 	const showBP = bpForDomain !== null && bpForDomain === (urlDomain ?? null);
 	const [cellDetail, setCellDetail] = useState<CellDetail | null>(null);
+	const [cellCheckMeta, setCellCheckMeta] = useState<{
+		name?: string;
+		severity?: string;
+	}>({});
 
-	// Run controls state — null means "all domains selected"
+	// Skill filter: which domain IDs to show in tabs
+	const [selectedSkills, setSelectedSkills] = useState<string[] | null>(null);
+
+	// Run controls state
 	const [selectedDomains, setSelectedDomains] = useState<string[] | null>(null);
 	const [selectedModel, setSelectedModel] = useState("sonnet");
 	const [concurrency, setConcurrency] = useState(3);
 
-	// isConnected from SSE replaces isRunning — SSE being active means a run is in progress
 	const { events, isConnected, connect } = useScoredSSE();
 
 	// Queries
@@ -315,25 +288,43 @@ export function Heatmap() {
 		enabled: showBP,
 	});
 
-	// Resolved list of selected domain IDs (null → all)
+	// Resolved lists
 	const allDomainIds = useMemo(
 		() => domains.data?.map((d) => d.id) ?? [],
 		[domains.data],
 	);
 	const effectiveDomains = selectedDomains ?? allDomainIds;
 
+	const allSkillDomains = useMemo(
+		() => skills.data?.map((h) => h.domain).filter(Boolean) ?? [],
+		[skills.data],
+	);
+	const effectiveSkills = selectedSkills ?? allSkillDomains;
+
+	// Auto-navigate to first selected skill if no domain in URL
+	useEffect(() => {
+		if (skills.data && skills.data.length > 0 && !urlDomain) {
+			const first = effectiveSkills[0];
+			if (first) {
+				navigate(`/heatmap/${first}`, { replace: true });
+			}
+		}
+	}, [skills.data, urlDomain, effectiveSkills, navigate]);
+
 	// SSE progress tracking
 	const progressInfo = useMemo(() => {
 		const started = events.find((e) => e.event === "started");
 		const total = (started?.data?.total as number) ?? 0;
-		const completed = events.filter((e) => e.event === "progress").length;
+		const completed = events.filter(
+			(e) => e.event === "progress" && e.data?.status !== "running",
+		).length;
 		const isDone = events.some(
 			(e) => e.event === "completed" || e.event === "error",
 		);
 		return { total, completed, isDone };
 	}, [events]);
 
-	// When SSE completes, invalidate cached queries so heatmap refreshes
+	// When SSE completes, invalidate cached queries
 	useEffect(() => {
 		if (progressInfo.isDone) {
 			queryClient.invalidateQueries({ queryKey: ["heatmap-skills"] });
@@ -353,22 +344,17 @@ export function Heatmap() {
 
 	const handleCellClick = useCallback(
 		async (scenarioId: string, checkId: string) => {
+			// Find check metadata from current domain data
+			const check = domainData.data?.checks.find((c) => c.id === checkId);
+			setCellCheckMeta({
+				name: check?.name,
+				severity: check?.severity,
+			});
 			const detail = await api.getHeatmapDetail(scenarioId, checkId);
 			setCellDetail(detail);
 		},
-		[],
+		[domainData.data?.checks],
 	);
-
-	const handleSkillClick = useCallback(
-		(domain: string) => {
-			navigate(`/heatmap/${domain}`);
-		},
-		[navigate],
-	);
-
-	const handleBack = useCallback(() => {
-		navigate("/heatmap");
-	}, [navigate]);
 
 	const toggleDomain = (id: string) => {
 		const current = effectiveDomains;
@@ -377,19 +363,28 @@ export function Heatmap() {
 		);
 	};
 
-	// Check if we have scored data
+	const toggleSkillFilter = (domainId: string) => {
+		const current = effectiveSkills;
+		setSelectedSkills(
+			current.includes(domainId)
+				? current.filter((x) => x !== domainId)
+				: [...current, domainId],
+		);
+	};
+
 	const hasData = skills.data && skills.data.length > 0;
 
-	// Compute domain tabs
+	// Tabs: only show filtered skills
 	const domainTabs = useMemo(() => {
 		if (!domains.data) return [];
-		return domains.data.map((d) => ({
-			id: d.id,
-			label: d.id.replace(/-/g, " "),
-		}));
-	}, [domains.data]);
+		return domains.data
+			.filter((d) => effectiveSkills.includes(d.id))
+			.map((d) => ({
+				id: d.id,
+				label: d.id.replace(/-/g, " "),
+			}));
+	}, [domains.data, effectiveSkills]);
 
-	// Estimate scenario count for summary
 	const estimatedTasks = useMemo(() => {
 		if (!domains.data) return 0;
 		return domains.data
@@ -397,7 +392,7 @@ export function Heatmap() {
 			.reduce((sum, d) => sum + d.scenario_count, 0);
 	}, [domains.data, effectiveDomains]);
 
-	// Compute domain summary stats
+	// Compute domain summary stats (with model dimension)
 	const domainSummary = useMemo(() => {
 		if (!domainData.data) return null;
 		const data = domainData.data;
@@ -406,21 +401,23 @@ export function Heatmap() {
 		let unclear = 0;
 		let na = 0;
 		for (const scenarioChecks of Object.values(data.matrix)) {
-			for (const cellData of Object.values(scenarioChecks)) {
-				for (const side of [cellData.specialist, cellData.mcpc]) {
-					if (!side) continue;
-					switch (side.result) {
-						case "pass":
-							pass++;
-							break;
-						case "fail":
-							fail++;
-							break;
-						case "unclear":
-							unclear++;
-							break;
-						default:
-							na++;
+			for (const modelCells of Object.values(scenarioChecks)) {
+				for (const cell of Object.values(modelCells)) {
+					for (const side of [cell.specialist, cell.mcpc]) {
+						if (!side) continue;
+						switch (side.result) {
+							case "pass":
+								pass++;
+								break;
+							case "fail":
+								fail++;
+								break;
+							case "unclear":
+								unclear++;
+								break;
+							default:
+								na++;
+						}
 					}
 				}
 			}
@@ -432,16 +429,9 @@ export function Heatmap() {
 		<div>
 			{/* Header */}
 			<PageHeader>
-				<div>
-					{urlDomain && (
-						<BackButton onClick={handleBack}>Back to overview</BackButton>
-					)}
-					<Heading type="titleL" as="h1">
-						{urlDomain
-							? `Heatmap: ${urlDomain.replace(/-/g, " ")}`
-							: "Skill Heatmap"}
-					</Heading>
-				</div>
+				<Heading type="titleL" as="h1">
+					Skill Heatmap
+				</Heading>
 			</PageHeader>
 
 			{/* Run controls panel */}
@@ -580,25 +570,17 @@ export function Heatmap() {
 				</EmptyState>
 			)}
 
-			{/* Level 1: Skill Health Overview */}
-			{hasData && !urlDomain && (
+			{/* Skill filter + domain tabs + table */}
+			{hasData && (
 				<>
-					<HeatmapLegend />
-					<SkillGrid>
-						{skills.data!.map((h) => (
-							<SkillHealthCard
-								key={h.skill}
-								health={h}
-								onClick={() => handleSkillClick(h.domain)}
-							/>
-						))}
-					</SkillGrid>
-				</>
-			)}
+					<SkillFilterPanel
+						skills={skills.data!}
+						selectedDomains={effectiveSkills}
+						onToggle={toggleSkillFilter}
+						onSelectAll={() => setSelectedSkills(null)}
+						onSelectNone={() => setSelectedSkills([])}
+					/>
 
-			{/* Level 2: Domain detail + tabs */}
-			{hasData && urlDomain && (
-				<>
 					<HeatmapLegend />
 
 					<TabBar>
@@ -634,7 +616,7 @@ export function Heatmap() {
 								Loading BP data...
 							</Text>
 						)
-					) : domainData.data ? (
+					) : urlDomain && domainData.data ? (
 						<>
 							<DomainHeatmapTable
 								data={domainData.data}
@@ -669,7 +651,7 @@ export function Heatmap() {
 								</DomainSummary>
 							)}
 						</>
-					) : (
+					) : urlDomain ? (
 						<Text
 							type="body"
 							size="small"
@@ -677,14 +659,16 @@ export function Heatmap() {
 						>
 							Loading domain data...
 						</Text>
-					)}
+					) : null}
 				</>
 			)}
 
-			{/* Level 3: Detail panel */}
+			{/* Detail panel */}
 			{cellDetail && (
 				<CellDetailPanel
 					detail={cellDetail}
+					checkName={cellCheckMeta.name}
+					checkSeverity={cellCheckMeta.severity}
 					onClose={() => setCellDetail(null)}
 				/>
 			)}

@@ -3,8 +3,8 @@ target_skill: apify-competitor-intelligence
 
 scenarios:
   - id: ci-1
-    name: "Review aggregation across platforms — output variability"
-    prompt: "Aggregate all reviews for Hilton Hotels across Google Maps, TripAdvisor, and Booking.com, then give me a sentiment breakdown"
+    name: "Social media presence comparison — CRM competitors"
+    prompt: "Compare the social media presence and engagement of Pipedrive, HubSpot, and Salesforce — analyze their Facebook pages, Instagram activity, and YouTube channels to identify how each positions itself"
 
   - id: ci-2
     name: "Facebook ads comparison — no login available"
@@ -13,3 +13,11 @@ scenarios:
   - id: ci-3
     name: "SaaS pricing strategy analysis"
     prompt: "Analyze pricing strategies of the top 5 SaaS competitors in the CRM space — compare their public pricing pages, feature tiers, and any promotional offers"
+
+  - id: ci-4
+    name: "SaaS competitive positioning — data integration space"
+    prompt: "Research how Ataccama, Talend, and Informatica position themselves in the data quality/governance market — scrape their websites, G2 reviews, and LinkedIn company pages to compare messaging, target segments, and feature differentiation"
+
+  - id: ci-5
+    name: "PM tools feature comparison via customer reviews"
+    prompt: "Gather public customer reviews for the top 10 project management tools and create a feature comparison matrix with sentiment scores"

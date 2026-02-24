@@ -1,4 +1,5 @@
-import { Text, theme } from "@apify/ui-library";
+import { Text, Tooltip, theme } from "@apify/ui-library";
+import { Fragment } from "react";
 import styled from "styled-components";
 import type {
 	BPHeatmapData,
@@ -6,21 +7,33 @@ import type {
 	HeatmapCheck,
 } from "../api/client";
 import { SingleHeatmapCell, SplitHeatmapCell } from "./HeatmapCell";
+import { SeverityBadge } from "./SeverityBadge";
+
+// --- Shared widths for sticky columns ---
+const CHECK_COL_WIDTH = "7rem";
+const NAME_COL_WIDTH = "16rem";
+
+// --- Styled components ---
 
 const TableWrapper = styled.div`
 	overflow-x: auto;
 	border: 1px solid ${theme.color.neutral.border};
 	border-radius: ${theme.radius.radius8};
 	background: ${theme.color.neutral.cardBackground};
+	max-height: 80vh;
+	overflow-y: auto;
 `;
 
 const Table = styled.table`
 	width: 100%;
-	border-collapse: collapse;
+	border-collapse: separate;
+	border-spacing: 0;
 	min-width: 40rem;
 `;
 
-const Th = styled.th<{ $rotated?: boolean }>`
+// --- Header cells ---
+
+const Th = styled.th<{ $rotated?: boolean; $sticky?: boolean }>`
 	padding: ${theme.space.space8};
 	text-align: left;
 	border-bottom: 1px solid ${theme.color.neutral.border};
@@ -29,6 +42,9 @@ const Th = styled.th<{ $rotated?: boolean }>`
 	font-size: 1.2rem;
 	font-weight: 600;
 	color: ${theme.color.neutral.textMuted};
+	position: sticky;
+	top: 0;
+	z-index: 3;
 
 	${(p) =>
 		p.$rotated &&
@@ -43,17 +59,103 @@ const Th = styled.th<{ $rotated?: boolean }>`
 	`}
 `;
 
+/** First column header: sticky top + left */
+const CheckTh = styled(Th)`
+	position: sticky;
+	left: 0;
+	z-index: 4;
+	width: ${CHECK_COL_WIDTH};
+	min-width: ${CHECK_COL_WIDTH};
+`;
+
+/** Second column header: sticky top + left (offset) */
+const NameTh = styled(Th)`
+	position: sticky;
+	left: ${CHECK_COL_WIDTH};
+	z-index: 4;
+	width: ${NAME_COL_WIDTH};
+	min-width: ${NAME_COL_WIDTH};
+	border-right: 2px solid ${theme.color.neutral.border};
+`;
+
+const ScenarioTh = styled.th`
+	padding: ${theme.space.space6} ${theme.space.space4};
+	text-align: center;
+	border-bottom: 1px solid ${theme.color.neutral.border};
+	border-left: 2px solid ${theme.color.neutral.border};
+	background: ${theme.color.neutral.backgroundMuted};
+	font-size: 1.2rem;
+	font-weight: 600;
+	color: ${theme.color.neutral.text};
+	position: sticky;
+	top: 0;
+	z-index: 3;
+`;
+
+const ModelTh = styled.th`
+	padding: ${theme.space.space4};
+	text-align: center;
+	border-bottom: 2px solid ${theme.color.neutral.border};
+	background: ${theme.color.neutral.backgroundMuted};
+	font-size: 1.1rem;
+	font-weight: 600;
+	color: ${theme.color.neutral.textMuted};
+	text-transform: lowercase;
+	min-width: 6.4rem;
+	position: sticky;
+	z-index: 3;
+
+	&:first-of-type {
+		border-left: 2px solid ${theme.color.neutral.border};
+	}
+`;
+
+// --- Body cells ---
+
 const Td = styled.td`
 	padding: ${theme.space.space4} ${theme.space.space8};
 	border-bottom: 1px solid ${theme.color.neutral.separatorSubtle};
 	vertical-align: middle;
+	background: ${theme.color.neutral.cardBackground};
 `;
 
-const CheckIdCell = styled(Td)`
+const ModelTd = styled(Td)`
+	border-left: none;
+	padding: ${theme.space.space4};
+
+	&:nth-child(3) {
+		border-left: 2px solid ${theme.color.neutral.border};
+	}
+`;
+
+/** Sticky first column (check ID) with severity left border */
+const CheckIdCell = styled(Td)<{ $severityColor?: string }>`
 	white-space: nowrap;
 	font-family: "IBM Plex Mono", monospace;
 	font-size: 1.2rem;
 	font-weight: 600;
+	position: sticky;
+	left: 0;
+	z-index: 2;
+	width: ${CHECK_COL_WIDTH};
+	min-width: ${CHECK_COL_WIDTH};
+	border-left: 3px solid ${(p) => p.$severityColor ?? "transparent"};
+`;
+
+/** Sticky second column (name) */
+const NameCell = styled(Td)`
+	position: sticky;
+	left: ${CHECK_COL_WIDTH};
+	z-index: 2;
+	width: ${NAME_COL_WIDTH};
+	min-width: ${NAME_COL_WIDTH};
+	border-right: 2px solid ${theme.color.neutral.border};
+`;
+
+const NameContent = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${theme.space.space4};
 `;
 
 const GroupHeaderRow = styled.tr`
@@ -68,7 +170,21 @@ const GroupHeaderCell = styled.td`
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	border-bottom: 2px solid ${theme.color.neutral.border};
+	background: ${theme.color.neutral.hover};
+	position: sticky;
+	left: 0;
 `;
+
+// --- Severity color mapping ---
+
+const severityBorderColors: Record<string, string> = {
+	CRITICAL: theme.color.danger.border,
+	HIGH: theme.color.warning.border,
+	MEDIUM: theme.color.neutral.border,
+	LOW: theme.color.success.borderSubtle,
+};
+
+// --- Helper ---
 
 function groupChecks(
 	checks: HeatmapCheck[],
@@ -85,7 +201,7 @@ function groupChecks(
 	return order.map((g) => ({ group: g, checks: grouped[g] }));
 }
 
-// --- Domain Heatmap Table ---
+// --- Domain Heatmap Table (multi-model) ---
 
 interface DomainTableProps {
 	data: DomainHeatmapData;
@@ -94,71 +210,118 @@ interface DomainTableProps {
 
 export function DomainHeatmapTable({ data, onCellClick }: DomainTableProps) {
 	const groups = groupChecks(data.checks);
+	const models = data.models ?? [];
+	const totalModelCols = data.scenarios.length * Math.max(models.length, 1);
+
+	const scenarioStartCols: Set<number> = new Set();
+	const modelsPerScenario = Math.max(models.length, 1);
+	for (let i = 0; i < data.scenarios.length; i++) {
+		scenarioStartCols.add(i * modelsPerScenario);
+	}
 
 	return (
 		<TableWrapper>
 			<Table>
 				<thead>
 					<tr>
-						<Th>Check</Th>
-						<Th>Name</Th>
+						<CheckTh rowSpan={models.length > 1 ? 2 : 1}>Check</CheckTh>
+						<NameTh rowSpan={models.length > 1 ? 2 : 1}>Name</NameTh>
 						{data.scenarios.map((s) => (
-							<Th key={s.id} $rotated>
+							<ScenarioTh key={s.id} colSpan={Math.max(models.length, 1)}>
 								{s.name}
-							</Th>
+							</ScenarioTh>
 						))}
 					</tr>
+					{models.length > 1 && (
+						<tr>
+							{data.scenarios.map((s) =>
+								models.map((m) => <ModelTh key={`${s.id}-${m}`}>{m}</ModelTh>),
+							)}
+						</tr>
+					)}
 				</thead>
 				<tbody>
 					{groups.map((g) => (
-						<>
-							<GroupHeaderRow key={`group-${g.group}`}>
-								<GroupHeaderCell colSpan={2 + data.scenarios.length}>
+						<Fragment key={`group-${g.group}`}>
+							<GroupHeaderRow>
+								<GroupHeaderCell colSpan={2 + totalModelCols}>
 									{g.group}
 								</GroupHeaderCell>
 							</GroupHeaderRow>
 							{g.checks.map((check) => (
 								<tr key={check.id}>
-									<CheckIdCell>{check.id}</CheckIdCell>
-									<Td>
-										<Text type="body" size="small">
-											{check.name}
-										</Text>
-									</Td>
-									{data.scenarios.map((s) => {
-										const cell = data.matrix[s.id]?.[check.id];
-										if (data.is_dev) {
-											return (
-												<Td key={s.id}>
-													<SingleHeatmapCell
-														result={cell?.specialist?.result ?? "na"}
-														detail={cell?.specialist?.summary}
-														onClick={
-															onCellClick
-																? () => onCellClick(s.id, check.id)
-																: undefined
-														}
-													/>
-												</Td>
-											);
+									<CheckIdCell
+										$severityColor={
+											severityBorderColors[check.severity?.toUpperCase()] ??
+											"transparent"
 										}
-										return (
-											<Td key={s.id}>
-												<SplitHeatmapCell
-													specialist={cell?.specialist ?? null}
-													mcpc={cell?.mcpc ?? null}
-													onClick={
-														onCellClick
-															? () => onCellClick(s.id, check.id)
-															: undefined
-													}
-												/>
-											</Td>
-										);
-									})}
+									>
+										{check.id}
+									</CheckIdCell>
+									<NameCell>
+										<NameContent>
+											<Tooltip
+												content={`${check.id}: ${check.name} (${check.severity})`}
+												delayShow={400}
+												size="medium"
+											>
+												<Text type="body" size="small">
+													{check.name}
+												</Text>
+											</Tooltip>
+											<SeverityBadge severity={check.severity} />
+										</NameContent>
+									</NameCell>
+									{data.scenarios.map((s, sIdx) =>
+										(models.length > 0 ? models : ["_default"]).map(
+											(m, mIdx) => {
+												const cell =
+													models.length > 0
+														? data.matrix[s.id]?.[check.id]?.[m]
+														: undefined;
+												const isScenarioStart = scenarioStartCols.has(
+													sIdx * Math.max(models.length, 1) + mIdx,
+												);
+												const tdStyle = isScenarioStart
+													? {
+															borderLeft: `2px solid ${theme.color.neutral.border}`,
+														}
+													: undefined;
+
+												if (data.is_dev) {
+													return (
+														<ModelTd key={`${s.id}-${m}`} style={tdStyle}>
+															<SingleHeatmapCell
+																result={cell?.specialist?.result ?? "na"}
+																detail={cell?.specialist?.summary}
+																onClick={
+																	onCellClick
+																		? () => onCellClick(s.id, check.id)
+																		: undefined
+																}
+															/>
+														</ModelTd>
+													);
+												}
+												return (
+													<ModelTd key={`${s.id}-${m}`} style={tdStyle}>
+														<SplitHeatmapCell
+															specialist={cell?.specialist ?? null}
+															mcpc={cell?.mcpc ?? null}
+															onClick={
+																onCellClick
+																	? () => onCellClick(s.id, check.id)
+																	: undefined
+															}
+														/>
+													</ModelTd>
+												);
+											},
+										),
+									)}
 								</tr>
 							))}
-						</>
+						</Fragment>
 					))}
 				</tbody>
 			</Table>
@@ -178,8 +341,8 @@ export function BPHeatmapTable({ data }: BPTableProps) {
 			<Table>
 				<thead>
 					<tr>
-						<Th>Check</Th>
-						<Th>Name</Th>
+						<CheckTh>Check</CheckTh>
+						<NameTh>Name</NameTh>
 						{data.skills.map((skill) => (
 							<Th key={skill} $rotated>
 								{skill.replace("apify-", "")}
@@ -190,12 +353,22 @@ export function BPHeatmapTable({ data }: BPTableProps) {
 				<tbody>
 					{data.checks.map((check) => (
 						<tr key={check.id}>
-							<CheckIdCell>{check.id}</CheckIdCell>
-							<Td>
-								<Text type="body" size="small">
-									{check.name}
-								</Text>
-							</Td>
+							<CheckIdCell
+								$severityColor={
+									severityBorderColors[check.severity?.toUpperCase()] ??
+									"transparent"
+								}
+							>
+								{check.id}
+							</CheckIdCell>
+							<NameCell>
+								<NameContent>
+									<Text type="body" size="small">
+										{check.name}
+									</Text>
+									<SeverityBadge severity={check.severity} />
+								</NameContent>
+							</NameCell>
 							{data.skills.map((skill) => {
 								const cell = data.matrix[check.id]?.[skill];
 								return (

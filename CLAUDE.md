@@ -22,7 +22,11 @@ Ověřit, jak dobře SKILL.md instrukce připraví agenta na reálné uživatels
 - 2 dev skillů: apify-actor-development, apify-actorization
 - 1 mcpc skill: mcpc-apify z `apify-mcpc-plugin/`
 
-## 23 scénářů ve 4 souborech + BP linter per-skill
+## Scored mode: domain scénáře × 3 skilly
+
+V scored mode (`--scored`) se každý non-dev domain scénář automaticky spouští proti 3 skillům: specialist + apify-mcpc + apify-ultimate-scraper. Dev domény (actor-development, actorization) běží jen proti specialist skillu.
+
+## 23 category scénářů ve 4 souborech + BP linter per-skill
 
 | Soubor | Cat | Počet | Modely |
 |---|---|---|---|
@@ -53,7 +57,7 @@ python3 sim.py                     # Plný běh (~52 checks, ~$2-7)
 python3 sim.py -c 5                # Zvýšit concurrency (default 3)
 ```
 
-## 5-Category Taxonomy (33 checků)
+## 5-Category Taxonomy (37 checků)
 
 ### WF — Workflow Quality (6)
 | ID | Severity | Název |
@@ -65,7 +69,7 @@ python3 sim.py -c 5                # Zvýšit concurrency (default 3)
 | WF-5 | MED | No scope detection |
 | WF-6 | MED | Linear-only workflow |
 
-### DK — Domain Knowledge (6)
+### DK — Domain Knowledge (8)
 | ID | Severity | Název |
 |---|---|---|
 | DK-1 | HIGH | Actor selection ambiguity |
@@ -74,6 +78,8 @@ python3 sim.py -c 5                # Zvýšit concurrency (default 3)
 | DK-4 | MED | Time-sensitive content |
 | DK-5 | MED | No scheduling pattern |
 | DK-6 | HIGH | Missing domain caveats |
+| DK-7 | HIGH | Input correctness validation |
+| DK-8 | MED | Data completeness awareness |
 
 ### BP — Best Practices (8) — static linter, no API
 | ID | Severity | Název |
@@ -87,7 +93,7 @@ python3 sim.py -c 5                # Zvýšit concurrency (default 3)
 | BP-7 | MED | Duplication between SKILL.md and references |
 | BP-8 | MED | Missing "when to read" guidance |
 
-### APF — Apify Platform Awareness (11)
+### APF — Apify Platform Awareness (13)
 | ID | Severity | Název |
 |---|---|---|
 | APF-1 | CRIT | Path resolution |
@@ -101,6 +107,8 @@ python3 sim.py -c 5                # Zvýšit concurrency (default 3)
 | APF-9 | LOW | Actor metadata ignorance |
 | APF-10 | MED | Proxy unawareness |
 | APF-11 | MED | Multi-actor orchestration gap |
+| APF-12 | MED | Memory and scaling limits |
+| APF-13 | LOW | Parallelization patterns |
 
 ### SEC — Security (2)
 | ID | Severity | Název |
