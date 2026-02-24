@@ -6,6 +6,23 @@ Skill Checker is a CLI + Web tool that sends [Claude Code](https://claude.ai/cla
 
 Built primarily to test [Apify](https://apify.com) agent skills — including the **apify-mcpc** plugin — but the framework works for any SKILL.md that follows the Claude Code skill format.
 
+## Table of contents
+
+- [How it works](#how-it-works)
+- [The apify-mcpc plugin](#the-apify-mcpc-plugin)
+- [Prerequisites](#prerequisites)
+- [Quick start](#quick-start)
+- [CLI usage](#cli-usage)
+- [Web UI](#web-ui)
+- [What gets tested (13 skills)](#what-gets-tested-13-skills)
+- [Project structure](#project-structure)
+- [Configuration](#configuration)
+- [Makefile targets](#makefile-targets)
+- [Tech stack](#tech-stack)
+- [Troubleshooting](#troubleshooting)
+- [Related documentation](#related-documentation)
+- [License](#license)
+
 ## How it works
 
 ```
@@ -31,7 +48,7 @@ Each scenario pairs a SKILL.md file with a prompt that simulates a real user req
 
 ## The apify-mcpc plugin
 
-The repo includes a **Claude Code plugin** (`plugins/apify-mcpc/`) that gives Claude the ability to find, evaluate, and run [Apify Actors](https://apify.com/store) through the [mcpc CLI](https://www.npmjs.com/package/@apify/mcpc).
+The repo includes a **Claude Code plugin** ([`plugins/apify-mcpc/`](plugins/apify-mcpc/README.md)) that gives Claude the ability to find, evaluate, and run [Apify Actors](https://apify.com/store) through the [mcpc CLI](https://www.npmjs.com/package/@apify/mcpc).
 
 **What it does:**
 
@@ -41,13 +58,40 @@ The repo includes a **Claude Code plugin** (`plugins/apify-mcpc/`) that gives Cl
 - Runs Actors with mandatory user confirmation gates (no surprise executions)
 - Includes 9 domain-specific use-case guides (audience analysis, lead generation, brand monitoring, ...)
 
-**The skill workflow in a nutshell:**
+**The 7-step skill workflow:**
 
-```
-Find Actors → Read schema → GATE (user confirms) → Validate inputs → GATE → Run → Verify output
-```
+1. **Search** — Find candidate Actors (always at least 2 searches: broad then narrow)
+2. **Fetch details** — Read README, input schema, stats, ratings
+3. **Build input** — Cross-reference schema with README for correct values
+4. **Validate** — Challenge assumptions about identifiers, verify against target service
+5. **Run** — Execute the Actor (test run with limit=1 first when uncertain)
+6. **Verify** — Sanity-check results before presenting (zero results = wrong input, not "no data")
+7. **Get results** — Fetch full dataset with field selection and pagination
 
-The plugin lives in `plugins/apify-mcpc/` and is one of the 13 skills tested by Skill Checker. See the [plugin README](plugins/apify-mcpc/README.md) for installation and usage details.
+Two mandatory gates stop the agent before running:
+- **After Step 2**: Show user the Actor choice + planned input, wait for confirmation
+- **After Step 4**: If any input value is guessed, tell user before running
+
+**Available mcpc tools:**
+
+| Session | Tool | Purpose |
+|---|---|---|
+| `@apify` | `search-actors` | Search Apify Store by keywords |
+| `@apify` | `fetch-actor-details` | Get README, input schema, stats, pricing |
+| `@apify` | `call-actor` | Run an Actor (sync or async) |
+| `@apify` | `get-actor-output` | Fetch dataset results with field selection |
+| `@apify` | `get-actor-run` | Check run status and stats |
+| `@apify` | `apify-slash-rag-web-browser` | Quick web search / URL fetch |
+| `@apify-docs` | `search-apify-docs` | Search Apify/Crawlee documentation |
+| `@apify-docs` | `fetch-apify-docs` | Fetch a specific documentation page |
+
+**Connection modes:**
+- **Full mode** (`@apify`) — requires OAuth (`mcpc mcp.apify.com login`), provides all tools including Actor execution
+- **Docs-only mode** (`@apify-docs`) — no authentication needed, only documentation search and fetch
+
+**User-Agent tracking:** All mcpc calls include a custom `User-Agent` header (`apify-agent-skills/apify-mcpc-<version>/<action>`) for Apify usage analytics, mirroring the pattern used by other Apify agent skills.
+
+See the [plugin README](plugins/apify-mcpc/README.md) for installation, full structure, and more details.
 
 ## Prerequisites
 
@@ -271,6 +315,14 @@ uvicorn server.main:app --port 9000
 # Frontend (Vite auto-increments if port is busy)
 cd web && npx vite --port 3000
 ```
+
+## Related documentation
+
+| Document | Description |
+|---|---|
+| [plugins/apify-mcpc/README.md](plugins/apify-mcpc/README.md) | apify-mcpc plugin — installation, workflow, mcpc tools, connection modes |
+| [web/README.md](web/README.md) | React frontend — Vite setup, ESLint configuration |
+| [skills/README.md](skills/README.md) | Upstream Apify agent skills (cloned by `make setup`) — skill list, installation for other AI tools |
 
 ## License
 

@@ -14,6 +14,7 @@ Claude Code plugin for finding, evaluating, and running [Apify Actors](https://a
 - [User-Agent tracking](#user-agent-tracking)
 - [Plugin structure](#plugin-structure)
 - [Features](#features)
+- [Related](#related)
 - [License](#license)
 
 ## What it does
@@ -137,6 +138,11 @@ plugins/apify-mcpc/
 - **Allowed tools**: Pre-approved `Bash(mcpc *)`, `Bash(jq *)`, `Read`, `Grep`, `Glob` for frictionless workflow
 - **Progressive disclosure**: SKILL.md stays under 500 lines; use-case details load on demand
 - **Workflow checklist**: 7-step Find → Understand → Validate → Run → Verify process
+
+## Related
+
+- [Root README](../../README.md) — Skill Checker project overview, CLI usage, Web UI, full project structure
+- [Upstream skills](../../skills/README.md) — Apify agent skills tested alongside this plugin
 
 ## License
 
