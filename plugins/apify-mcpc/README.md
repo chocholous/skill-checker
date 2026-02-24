@@ -2,6 +2,16 @@
 
 Claude Code plugin for finding, evaluating, and running [Apify Actors](https://apify.com/store) using the [mcpc CLI](https://www.npmjs.com/package/@apify/mcpc).
 
+## Table of contents
+
+- [What it does](#what-it-does)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Use cases](#use-cases)
+- [Plugin structure](#plugin-structure)
+- [Features](#features)
+- [License](#license)
+
 ## What it does
 
 - Searches Apify Store for the right Actor for any scraping/automation task
