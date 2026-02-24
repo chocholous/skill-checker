@@ -16,7 +16,7 @@ from sim_core import (
     load_domain_scenarios,
     load_manifest,
     run_scored_scenario,
-    save_scored_report,
+    save_scored_report_incremental,
 )
 
 
@@ -31,16 +31,17 @@ class ScoredRunStatus(str, Enum):
 class ScoredRunState:
     run_id: str
     status: ScoredRunStatus
-    model: str
+    models: list[str]
     domains: list[str] | None
     concurrency: int
-    # {scenario_id: {skill_name: status}}
-    progress: dict[str, dict[str, str]] = field(default_factory=dict)
+    # {scenario_id: {skill_name: {model: status}}}
+    progress: dict[str, dict[str, dict[str, str]]] = field(default_factory=dict)
     results: list[ScoredRun] = field(default_factory=list)
     error: str | None = None
     queue: asyncio.Queue = field(default_factory=asyncio.Queue)
     started_at: str = ""
     completed_at: str = ""
+    _save_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
 class RunManager:
@@ -53,7 +54,7 @@ class RunManager:
     def start_scored_run(
         self,
         domains: list[str] | None,
-        model: str,
+        models: list[str],
         concurrency: int = DEFAULT_CONCURRENCY,
     ) -> str:
         """Start a scored run. Returns run_id."""
@@ -62,7 +63,7 @@ class RunManager:
         state = ScoredRunState(
             run_id=run_id,
             status=ScoredRunStatus.PENDING,
-            model=model,
+            models=models,
             domains=domains,
             concurrency=concurrency,
             started_at=datetime.now().isoformat(),
@@ -74,7 +75,7 @@ class RunManager:
         return run_id
 
     async def _execute_scored(self, state: ScoredRunState):
-        """Execute a scored run: for each (scenario, skill) combination, run scored evaluation."""
+        """Execute a scored run: for each (scenario, skill, model) combination, run scored evaluation."""
         state.status = ScoredRunStatus.RUNNING
 
         try:
@@ -91,17 +92,20 @@ class RunManager:
             else:
                 filtered = domain_scenarios
 
-            # Build task list: (scenario, skill_name)
-            tasks_list: list[tuple[Scenario, str]] = []
+            # Build task list: (scenario, skill_name, model) cross-product
+            tasks_list: list[tuple[Scenario, str, str]] = []
             for domain_id, scenarios in filtered.items():
                 for scenario in scenarios:
                     skills = get_target_skills(scenario, manifest)
                     for skill_name in skills:
-                        tasks_list.append((scenario, skill_name))
-                        # Init progress grid
-                        if scenario.id not in state.progress:
-                            state.progress[scenario.id] = {}
-                        state.progress[scenario.id][skill_name] = "pending"
+                        for model in state.models:
+                            tasks_list.append((scenario, skill_name, model))
+                            # Init progress grid
+                            if scenario.id not in state.progress:
+                                state.progress[scenario.id] = {}
+                            if skill_name not in state.progress[scenario.id]:
+                                state.progress[scenario.id][skill_name] = {}
+                            state.progress[scenario.id][skill_name][model] = "pending"
 
             total = len(tasks_list)
             await state.queue.put(
@@ -116,32 +120,45 @@ class RunManager:
 
             semaphore = asyncio.Semaphore(state.concurrency)
 
-            async def run_one_scored(scenario: Scenario, skill_name: str):
-                state.progress[scenario.id][skill_name] = "running"
+            async def run_one_scored(scenario: Scenario, skill_name: str, model: str):
+                state.progress[scenario.id][skill_name][model] = "running"
                 await state.queue.put(
                     {
                         "event": "progress",
                         "data": {
                             "scenario_id": scenario.id,
                             "skill": skill_name,
+                            "model": model,
                             "status": "running",
                         },
                     }
                 )
 
                 scored = await run_scored_scenario(
-                    scenario, skill_name, state.model, manifest, semaphore
+                    scenario, skill_name, model, manifest, semaphore
                 )
                 state.results.append(scored)
 
+                # Incremental save after each completed task
+                metadata = {
+                    "models": state.models,
+                    "domains": state.domains,
+                    "concurrency": state.concurrency,
+                }
+                async with state._save_lock:
+                    save_scored_report_incremental(
+                        state.run_id, state.results, metadata
+                    )
+
                 cell_status = "error" if scored.error else "ok"
-                state.progress[scenario.id][skill_name] = cell_status
+                state.progress[scenario.id][skill_name][model] = cell_status
                 await state.queue.put(
                     {
                         "event": "progress",
                         "data": {
                             "scenario_id": scenario.id,
                             "skill": skill_name,
+                            "model": model,
                             "status": cell_status,
                             "duration_s": scored.duration_s,
                             "error": scored.error,
@@ -149,25 +166,35 @@ class RunManager:
                     }
                 )
 
-            coros = [run_one_scored(s, sk) for s, sk in tasks_list]
-            await asyncio.gather(*coros)
-
-            # Save scored report
-            metadata = {
-                "model": state.model,
-                "domains": state.domains,
-                "concurrency": state.concurrency,
-            }
-            report_path = save_scored_report(state.results, metadata)
+            coros = [run_one_scored(s, sk, m) for s, sk, m in tasks_list]
+            try:
+                await asyncio.gather(*coros)
+            except Exception as gather_exc:
+                # On partial failure: save whatever results we have so far
+                if state.results:
+                    metadata = {
+                        "models": state.models,
+                        "domains": state.domains,
+                        "concurrency": state.concurrency,
+                    }
+                    async with state._save_lock:
+                        save_scored_report_incremental(
+                            state.run_id, state.results, metadata
+                        )
+                raise gather_exc
 
             state.status = ScoredRunStatus.COMPLETED
             state.completed_at = datetime.now().isoformat()
+
+            # Determine the final report filename (already saved incrementally)
+            report_name = f"scored_run_{state.run_id}.json"
+
             await state.queue.put(
                 {
                     "event": "completed",
                     "data": {
                         "run_id": state.run_id,
-                        "report_json": report_path.name,
+                        "report_json": report_name,
                         "total_results": len(state.results),
                     },
                 }
