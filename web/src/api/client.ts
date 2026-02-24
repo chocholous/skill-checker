@@ -203,7 +203,7 @@ export const api = {
 		request<CellDetail>(`/heatmap/detail/${scenarioId}/${checkId}`),
 	startScoredRun: (opts: {
 		domains?: string[];
-		model?: string;
+		models?: string[];
 		concurrency?: number;
 	}) =>
 		request<ScoredRunStartResponse>("/heatmap/run", {
