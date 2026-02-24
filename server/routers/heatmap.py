@@ -18,6 +18,7 @@ from sim_core import (
     DEV_DOMAINS,
     DOMAIN_SKILL_MAP,
     LLM_CHECK_IDS,
+    get_target_skills,
     load_all_scored_reports,
     load_domain_scenarios,
     load_latest_scored_report,
@@ -406,15 +407,29 @@ def get_models():
 # ---------------------------------------------------------------------------
 
 
+VALID_MODELS = {"sonnet", "opus", "haiku"}
+
+
 class ScoredRunRequest(BaseModel):
     domains: list[str] | None = None  # None = all domains
-    model: str = "sonnet"
+    models: list[str] = ["sonnet"]
     concurrency: int = DEFAULT_CONCURRENCY
 
 
 @router.post("/run")
 async def start_scored_run(body: ScoredRunRequest):
     """Start a scored run. Returns run_id and total task count."""
+    # Validate models
+    if not body.models:
+        raise HTTPException(400, "models list must not be empty")
+    invalid_models = set(body.models) - VALID_MODELS
+    if invalid_models:
+        raise HTTPException(
+            400,
+            f"Invalid models: {', '.join(sorted(invalid_models))}. "
+            f"Allowed: {', '.join(sorted(VALID_MODELS))}",
+        )
+
     domain_scenarios = load_domain_scenarios()
 
     # Filter domains if requested
@@ -431,18 +446,16 @@ async def start_scored_run(body: ScoredRunRequest):
 
     manifest = load_manifest()
 
-    # Count total tasks
+    # Count total tasks: scenario × skill × model (matches runner task list exactly)
     total = 0
     for domain_id, scenarios in filtered.items():
-        is_dev = domain_id in DEV_DOMAINS
         for scenario in scenarios:
-            total += 1  # specialist
-            if not is_dev and "apify-mcpc" in manifest:
-                total += 1  # mcpc
+            skills = get_target_skills(scenario, manifest)
+            total += len(skills) * len(body.models)
 
     run_id = run_manager.start_scored_run(
         domains=body.domains,
-        model=body.model,
+        models=body.models,
         concurrency=body.concurrency,
     )
 
