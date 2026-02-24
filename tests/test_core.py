@@ -27,10 +27,13 @@ from sim_core import (
     get_category_type,
     get_scenario_models,
     get_target_skills,
+    load_all_scored_reports,
     load_domain_scenarios,
     load_manifest,
+    load_scored_report,
     load_scenarios,
     parse_scoring_response,
+    save_scored_report_incremental,
 )
 
 
@@ -465,3 +468,192 @@ def test_scored_run_dataclass():
     assert sr.scenario_id == "ci-1"
     assert len(sr.checks) == 1
     assert sr.error is None
+
+
+# --- Incremental save ---
+
+
+def _make_scored_run(
+    scenario_id: str = "ci-1",
+    skill: str = "apify-competitor-intelligence",
+    model: str = "sonnet",
+) -> ScoredRun:
+    """Helper to create a ScoredRun with realistic data for testing."""
+    return ScoredRun(
+        scenario_id=scenario_id,
+        skill=skill,
+        model=model,
+        checks=[
+            CheckResult(
+                check_id="WF-1",
+                result="pass",
+                evidence="Has workflow steps",
+                summary="Workflow present",
+            ),
+            CheckResult(
+                check_id="DK-1",
+                result="fail",
+                evidence="No actor selection guidance",
+                summary="Missing guidance",
+            ),
+        ],
+        risk_level="MEDIUM",
+        markdown_response="## Analysis\nDetailed analysis here.",
+        duration_s=3.7,
+        cost_info="input=500, output=1200",
+        error=None,
+    )
+
+
+def test_save_scored_report_incremental_creates_file(tmp_path, monkeypatch):
+    """save_scored_report_incremental writes scored_run_{run_id}.json."""
+    monkeypatch.setattr("sim_core.REPORTS_DIR", tmp_path)
+    run_id = "test_run_abc"
+    results = [_make_scored_run()]
+    metadata = {"model": "sonnet", "domains": ["competitive-intelligence"]}
+
+    path = save_scored_report_incremental(run_id, results, metadata)
+
+    assert path == tmp_path / "scored_run_test_run_abc.json"
+    assert path.exists()
+
+
+def test_save_scored_report_incremental_valid_json(tmp_path, monkeypatch):
+    """save_scored_report_incremental produces valid JSON."""
+    monkeypatch.setattr("sim_core.REPORTS_DIR", tmp_path)
+    results = [_make_scored_run()]
+    metadata = {"model": "sonnet"}
+
+    path = save_scored_report_incremental("run123", results, metadata)
+
+    data = json.loads(path.read_text())
+    assert data["type"] == "scored"
+    assert "generated" in data
+    assert data["run_id"] == "run123"
+    assert data["result_count"] == 1
+    assert len(data["results"]) == 1
+
+
+def test_save_scored_report_incremental_json_structure(tmp_path, monkeypatch):
+    """The JSON structure matches the same schema as save_scored_report."""
+    monkeypatch.setattr("sim_core.REPORTS_DIR", tmp_path)
+    run = _make_scored_run(
+        scenario_id="ci-1", skill="apify-competitor-intelligence", model="sonnet"
+    )
+    metadata = {"model": "sonnet", "domains": ["competitive-intelligence"]}
+
+    path = save_scored_report_incremental("struct_test", [run], metadata)
+
+    data = json.loads(path.read_text())
+    result = data["results"][0]
+
+    assert result["scenario_id"] == "ci-1"
+    assert result["skill"] == "apify-competitor-intelligence"
+    assert result["model"] == "sonnet"
+    assert result["risk_level"] == "MEDIUM"
+    assert result["duration_s"] == 3.7
+    assert result["cost_info"] == "input=500, output=1200"
+    assert result["error"] is None
+    assert result["markdown_response"] == "## Analysis\nDetailed analysis here."
+
+    checks = result["checks"]
+    assert len(checks) == 2
+    wf1 = next(c for c in checks if c["check_id"] == "WF-1")
+    assert wf1["result"] == "pass"
+    assert wf1["evidence"] == "Has workflow steps"
+    assert wf1["summary"] == "Workflow present"
+
+
+def test_save_scored_report_incremental_run_id_in_filename(tmp_path, monkeypatch):
+    """File name contains the run_id exactly."""
+    monkeypatch.setattr("sim_core.REPORTS_DIR", tmp_path)
+    run_id = "my_unique_run_42"
+
+    path = save_scored_report_incremental(run_id, [], {"model": "sonnet"})
+
+    assert path.name == f"scored_run_{run_id}.json"
+
+
+def test_save_scored_report_incremental_atomic_no_tmp_left(tmp_path, monkeypatch):
+    """After a successful write, no .json.tmp file remains."""
+    monkeypatch.setattr("sim_core.REPORTS_DIR", tmp_path)
+
+    save_scored_report_incremental(
+        "atomic_run", [_make_scored_run()], {"model": "sonnet"}
+    )
+
+    tmp_files = list(tmp_path.glob("*.json.tmp"))
+    assert tmp_files == [], f"Unexpected tmp files: {tmp_files}"
+    json_files = list(tmp_path.glob("*.json"))
+    assert len(json_files) == 1
+
+
+def test_save_scored_report_incremental_overwrites_on_second_call(
+    tmp_path, monkeypatch
+):
+    """Calling save_scored_report_incremental twice with same run_id overwrites the file."""
+    monkeypatch.setattr("sim_core.REPORTS_DIR", tmp_path)
+    run_id = "overwrite_run"
+
+    save_scored_report_incremental(run_id, [_make_scored_run()], {"model": "sonnet"})
+    first_path = tmp_path / f"scored_run_{run_id}.json"
+    first_data = json.loads(first_path.read_text())
+    assert first_data["result_count"] == 1
+
+    second_run = _make_scored_run(scenario_id="ci-2")
+    save_scored_report_incremental(
+        run_id, [_make_scored_run(), second_run], {"model": "sonnet"}
+    )
+
+    second_data = json.loads(first_path.read_text())
+    assert second_data["result_count"] == 2
+    assert len(second_data["results"]) == 2
+
+
+def test_save_scored_report_incremental_metadata_included(tmp_path, monkeypatch):
+    """Metadata fields are included at the top level of the JSON."""
+    monkeypatch.setattr("sim_core.REPORTS_DIR", tmp_path)
+    metadata = {
+        "model": "haiku",
+        "domains": ["ecommerce", "social-media"],
+        "concurrency": 3,
+    }
+
+    path = save_scored_report_incremental("meta_run", [], metadata)
+    data = json.loads(path.read_text())
+
+    assert data["model"] == "haiku"
+    assert data["domains"] == ["ecommerce", "social-media"]
+    assert data["concurrency"] == 3
+
+
+def test_load_all_scored_reports_matches_incremental_files(tmp_path, monkeypatch):
+    """load_all_scored_reports() correctly loads files created by save_scored_report_incremental."""
+    monkeypatch.setattr("sim_core.REPORTS_DIR", tmp_path)
+
+    run = _make_scored_run()
+    save_scored_report_incremental("inc_run_001", [run], {"model": "sonnet"})
+
+    reports = load_all_scored_reports()
+    assert len(reports) == 1
+
+    loaded_metadata, loaded_runs = reports[0]
+    assert loaded_metadata["run_id"] == "inc_run_001"
+    assert loaded_metadata["type"] == "scored"
+    assert len(loaded_runs) == 1
+    assert loaded_runs[0].scenario_id == "ci-1"
+    assert loaded_runs[0].skill == "apify-competitor-intelligence"
+    assert loaded_runs[0].model == "sonnet"
+    assert loaded_runs[0].risk_level == "MEDIUM"
+
+
+def test_save_scored_report_incremental_creates_reports_dir(tmp_path, monkeypatch):
+    """save_scored_report_incremental creates REPORTS_DIR if it doesn't exist."""
+    new_dir = tmp_path / "reports_new"
+    assert not new_dir.exists()
+    monkeypatch.setattr("sim_core.REPORTS_DIR", new_dir)
+
+    save_scored_report_incremental("dir_test", [], {"model": "sonnet"})
+
+    assert new_dir.exists()
+    assert (new_dir / "scored_run_dir_test.json").exists()
