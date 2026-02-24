@@ -17,7 +17,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/apify-mcpc/scripts/check_apify.sh
 
 The script checks: mcpc CLI installed, OAuth profile for mcp.apify.com, active @apify and @apify-docs sessions.
 If it fails:
-- mcpc missing → `npm i -g @anthropic-ai/mcpc`
+- mcpc missing → `npm i -g @apify/mcpc`
 - OAuth missing → `mcpc mcp.apify.com login`
 - Sessions missing → `mcpc @apify restart`
 
@@ -107,6 +107,8 @@ mcpc @apify tools-call apify-slash-rag-web-browser query:="san francisco weather
 mcpc @apify tools-call apify-slash-rag-web-browser query:="https://www.example.com"
 ```
 
+Parameters: `query` (required), `maxResults` (default 3), `outputFormats` (array: `"markdown"` default, `"text"`, `"html"`). Use `outputFormats:='["text"]'` to save tokens.
+
 Use when: user wants immediate data ("get me info about X", "fetch this URL"), not a specialized scraper.
 
 ## Workflow: Find → Understand → Validate → Run → Verify
@@ -147,6 +149,7 @@ mcpc @apify tools-call search-actors keywords:="instagram profile"
 - Avoid generic terms like "crawler", "data extraction"
 - Pick all valid candidates for comparison
 - Actor identifier in results is `fullName` field (e.g., `apify/website-content-crawler`)
+- `search-actors` accepts `limit` (1–100, default 10) and `offset` (default 0) for pagination
 
 ### Step 2: Fetch Actor details and input schema
 
@@ -169,7 +172,7 @@ Valid `output` fields (`additionalProperties: false` — typo = error `-32602`):
 |-------|---------|
 | `description` | Actor description text |
 | `stats` | `actorInfo.stats`: `totalUsers`, `monthlyUsers`, `successRate`, `bookmarks` |
-| `pricing` | `actorInfo.pricing`: `model` (FREE/PAY_PER_EVENT/PRICE_PER_DATASET_ITEM), `isFree` |
+| `pricing` | `actorInfo.pricing`: `model` (FREE/PAY_PER_EVENT/PRICE_PER_DATASET_ITEM/FLAT_PRICE_PER_MONTH), `isFree` |
 | `rating` | `actorInfo.rating`: `average` (out of 5), `count` |
 | `metadata` | `actorInfo`: `developer`, `categories`, `modifiedAt`, `isDeprecated` |
 | `inputSchema` | Full JSON Schema of input parameters |
@@ -290,6 +293,8 @@ With field selection and pagination:
 mcpc @apify tools-call get-actor-output datasetId:="abc123" fields:="title,url,price" limit:=50
 ```
 
+Dot notation in `fields` (e.g., `fields:="url,crawl.httpStatusCode"`) works but **flattens** the output — keys become `"crawl.httpStatusCode"` not nested. In jq use `."crawl.httpStatusCode"` (quoted), not `.crawl.httpStatusCode`.
+
 **`get-actor-output` response** (`structuredContent`): `datasetId`, `items[]`, `itemCount`, `totalItemCount`, `offset`, `limit`.
 
 If the run was async or is still in progress, check status first:
@@ -376,6 +381,7 @@ mcpc @apify-docs tools-call fetch-apify-docs url:="https://docs.apify.com/platfo
 
 - `docSource`: `"apify"`, `"crawlee-js"`, or `"crawlee-py"`
 - `query`: keywords only, not sentences
+- `limit`: 1–20 (default 5), `offset`: for pagination (default 0)
 
 ## Filtering mcpc Output
 
