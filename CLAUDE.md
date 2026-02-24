@@ -20,7 +20,7 @@ Ověřit, jak dobře SKILL.md instrukce připraví agenta na reálné uživatels
 - 9 dispatcher skillů (shared 5-step workflow) z `apify-marketing-intelligence/.agents/skills/`
 - 1 dispatcher outlier: apify-ecommerce (inline schema, no mcpc)
 - 2 dev skillů: apify-actor-development, apify-actorization
-- 1 mcpc skill: mcpc-apify z `apify-mcpc-plugin/`
+- 1 mcpc skill: mcpc-apify z `plugins/apify-mcpc/`
 
 ## Scored mode: domain scénáře × 3 skilly
 

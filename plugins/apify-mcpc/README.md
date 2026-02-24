@@ -17,16 +17,17 @@ Claude Code plugin for finding, evaluating, and running [Apify Actors](https://a
 
 ## Installation
 
+### From skill-checker marketplace
+
+```bash
+claude marketplace add chocholous/skill-checker
+claude plugin install apify-mcpc@skill-checker
+```
+
 ### Local development
 
 ```bash
-claude --plugin-dir ./apify-mcpc-plugin
-```
-
-### From marketplace (when published)
-
-```bash
-claude plugin install apify-mcpc
+claude --plugin-dir ./plugins/apify-mcpc
 ```
 
 ## Use cases
@@ -50,7 +51,7 @@ Actor tables in use-case files are **suggestions, not closed lists**. The agent 
 ## Plugin structure
 
 ```
-apify-mcpc-plugin/
+plugins/apify-mcpc/
 ├── .claude-plugin/
 │   └── plugin.json              # Plugin manifest
 ├── skills/

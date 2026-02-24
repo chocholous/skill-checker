@@ -46,5 +46,5 @@ skills:
 
   # apify-mcpc plugin (centralized mcpc workflow + use-case references)
   apify-mcpc:
-    path: apify-mcpc-plugin/skills/apify-mcpc/SKILL.md
+    path: plugins/apify-mcpc/skills/apify-mcpc/SKILL.md
     category: mcpc-plugin

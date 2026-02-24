@@ -104,7 +104,7 @@ skills:
 
   # Local skill
   apify-mcpc:
-    path: apify-mcpc-plugin/skills/apify-mcpc/SKILL.md
+    path: plugins/apify-mcpc/skills/apify-mcpc/SKILL.md
     category: mcpc-plugin
 ```
 
@@ -140,7 +140,8 @@ skill-checker/
       components/         # Shared UI components
       api/                # API client
       hooks/              # React hooks
-  apify-mcpc-plugin/      # Centralized mcpc workflow + skill
+  plugins/
+    apify-mcpc/             # Centralized mcpc workflow + skill (Claude plugin)
   reports/                # Generated reports (gitignored)
 ```
 
