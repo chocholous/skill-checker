@@ -13,3 +13,7 @@ web/dist/
 !plugins/**/skills/
 docs/*.swarm_status.json
 docs/heatmap-design.html
+.worktree-setup.sh
+*.code-workspace
+.env.*
+!.env.example
