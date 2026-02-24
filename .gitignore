@@ -9,6 +9,7 @@ web/dist/
 *.yaml.bak
 .ruff_cache/
 .pytest_cache/
-skills/
+/skills/
+!plugins/**/skills/
 docs/*.swarm_status.json
 docs/heatmap-design.html
