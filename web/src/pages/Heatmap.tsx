@@ -1,6 +1,6 @@
 import { Button, Heading, Text, theme } from "@apify/ui-library";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import styled from "styled-components";
 import type { CellDetail } from "../api/client";
@@ -186,24 +186,6 @@ const ToggleButton = styled.button<{ $disabled?: boolean }>`
 	}
 `;
 
-const NativeSelect = styled.select<{ $disabled?: boolean }>`
-	font-size: 1.4rem;
-	padding: ${theme.space.space6} ${theme.space.space8};
-	border-radius: ${theme.radius.radius4};
-	border: 1px solid ${theme.color.neutral.fieldBorder};
-	background: ${theme.color.neutral.fieldBackground};
-	color: ${theme.color.neutral.text};
-	cursor: ${({ $disabled }) => ($disabled ? "not-allowed" : "pointer")};
-	opacity: ${({ $disabled }) => ($disabled ? "0.5" : "1")};
-	width: 100%;
-
-	&:focus {
-		outline: none;
-		border-color: ${theme.color.primary.fieldBorderActive};
-		box-shadow: ${theme.shadow.shadowActive};
-	}
-`;
-
 const RangeWrapper = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -260,8 +242,12 @@ export function Heatmap() {
 
 	// Run controls state
 	const [selectedDomains, setSelectedDomains] = useState<string[] | null>(null);
-	const [selectedModel, setSelectedModel] = useState("sonnet");
+	const [selectedModels, setSelectedModels] = useState<string[]>(["sonnet"]);
 	const [concurrency, setConcurrency] = useState(3);
+
+	// Throttled invalidation: avoid hammering the server during a long run
+	const INVALIDATION_THROTTLE_MS = 5000;
+	const lastInvalidationRef = useRef<number>(0);
 
 	const { events, isConnected, connect } = useScoredSSE();
 
@@ -324,7 +310,24 @@ export function Heatmap() {
 		return { total, completed, isDone };
 	}, [events]);
 
-	// When SSE completes, invalidate cached queries
+	// Throttled invalidation: refresh heatmap every ~5s while run is in progress
+	useEffect(() => {
+		const lastEvent = events[events.length - 1];
+		if (!lastEvent) return;
+		if (
+			lastEvent.event === "progress" &&
+			lastEvent.data?.status !== "running"
+		) {
+			const now = Date.now();
+			if (now - lastInvalidationRef.current >= INVALIDATION_THROTTLE_MS) {
+				lastInvalidationRef.current = now;
+				queryClient.invalidateQueries({ queryKey: ["heatmap-skills"] });
+				queryClient.invalidateQueries({ queryKey: ["heatmap-domain"] });
+			}
+		}
+	}, [events, queryClient]);
+
+	// When SSE completes, always invalidate cached queries (fallback)
 	useEffect(() => {
 		if (progressInfo.isDone) {
 			queryClient.invalidateQueries({ queryKey: ["heatmap-skills"] });
@@ -336,11 +339,26 @@ export function Heatmap() {
 	const handleRunScored = useCallback(async () => {
 		const result = await api.startScoredRun({
 			domains: selectedDomains !== null ? selectedDomains : undefined,
-			model: selectedModel,
+			models: selectedModels,
 			concurrency,
 		});
 		connect(result.run_id);
-	}, [connect, selectedDomains, selectedModel, concurrency]);
+	}, [connect, selectedDomains, selectedModels, concurrency]);
+
+	const handleRunAll = useCallback(async () => {
+		const result = await api.startScoredRun({
+			domains: undefined,
+			models: AVAILABLE_MODELS,
+			concurrency,
+		});
+		connect(result.run_id);
+	}, [connect, concurrency]);
+
+	const toggleModel = (model: string) => {
+		setSelectedModels((prev) =>
+			prev.includes(model) ? prev.filter((m) => m !== model) : [...prev, model],
+		);
+	};
 
 	const handleCellClick = useCallback(
 		async (scenarioId: string, checkId: string) => {
@@ -391,6 +409,11 @@ export function Heatmap() {
 			.filter((d) => effectiveDomains.includes(d.id))
 			.reduce((sum, d) => sum + d.scenario_count, 0);
 	}, [domains.data, effectiveDomains]);
+
+	const estimatedTotal = useMemo(
+		() => estimatedTasks * Math.max(selectedModels.length, 1),
+		[estimatedTasks, selectedModels.length],
+	);
 
 	// Compute domain summary stats (with model dimension)
 	const domainSummary = useMemo(() => {
@@ -472,23 +495,22 @@ export function Heatmap() {
 					</DomainList>
 				</Card>
 
-				{/* Card 2: Model + Concurrency */}
+				{/* Card 2: Model checkboxes + Concurrency */}
 				<Card>
 					<CardTitle type="titleS" as="h3">
-						Model
+						Models
 					</CardTitle>
-					<NativeSelect
-						value={selectedModel}
-						onChange={(e) => setSelectedModel(e.target.value)}
-						disabled={isConnected}
-						$disabled={isConnected}
-					>
-						{AVAILABLE_MODELS.map((m) => (
-							<option key={m} value={m}>
-								{m}
-							</option>
-						))}
-					</NativeSelect>
+					{AVAILABLE_MODELS.map((m) => (
+						<CheckboxLabel key={m} $disabled={isConnected}>
+							<NativeCheckbox
+								type="checkbox"
+								checked={selectedModels.includes(m)}
+								onChange={() => toggleModel(m)}
+								disabled={isConnected}
+							/>
+							{m}
+						</CheckboxLabel>
+					))}
 					<RangeWrapper>
 						<CardTitle type="titleS" as="h3">
 							Concurrency
@@ -516,16 +538,30 @@ export function Heatmap() {
 							</CardTitle>
 							<RunSummary type="body" size="small">
 								{effectiveDomains.length} domains &times; ~{estimatedTasks}{" "}
-								scenarios (model: {selectedModel})
+								scenarios &times; {selectedModels.length} model
+								{selectedModels.length !== 1 ? "s" : ""} (~{estimatedTotal}{" "}
+								total)
 							</RunSummary>
 						</div>
 						<Button
 							size="large"
 							variant="primary"
 							onClick={handleRunScored}
-							disabled={isConnected || effectiveDomains.length === 0}
+							disabled={
+								isConnected ||
+								effectiveDomains.length === 0 ||
+								selectedModels.length === 0
+							}
 						>
 							{isConnected ? "Running..." : "Run Scored Analysis"}
+						</Button>
+						<Button
+							size="large"
+							variant="secondary"
+							onClick={handleRunAll}
+							disabled={isConnected}
+						>
+							Run All Models
 						</Button>
 					</RunCardInner>
 				</Card>
@@ -539,6 +575,7 @@ export function Heatmap() {
 					</Text>
 					<Text type="body" size="small" color={theme.color.neutral.textMuted}>
 						{progressInfo.completed} / {progressInfo.total || "?"} completed
+						{selectedModels.length > 0 && ` (${selectedModels.join(", ")})`}
 					</Text>
 					<ProgressBar>
 						<ProgressFill
