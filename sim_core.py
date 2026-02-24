@@ -1165,6 +1165,55 @@ def load_latest_scored_report() -> tuple[dict, list[ScoredRun]] | None:
     return load_scored_report(scored_files[0])
 
 
+def save_scored_report_incremental(
+    run_id: str,
+    results: list[ScoredRun],
+    metadata: dict,
+) -> Path:
+    """Overwrite the run's report file with current results (atomic).
+
+    Writes to reports/scored_run_{run_id}.json using a tmp file + os.rename()
+    to prevent partial reads if the process is interrupted mid-write.
+    """
+    REPORTS_DIR.mkdir(exist_ok=True)
+    path = REPORTS_DIR / f"scored_run_{run_id}.json"
+    tmp_path = path.with_suffix(".json.tmp")
+
+    data = {
+        "type": "scored",
+        "generated": datetime.now().isoformat(),
+        "run_id": run_id,
+        **metadata,
+        "result_count": len(results),
+        "results": [
+            {
+                "scenario_id": r.scenario_id,
+                "skill": r.skill,
+                "model": r.model,
+                "risk_level": r.risk_level,
+                "duration_s": r.duration_s,
+                "cost_info": r.cost_info,
+                "error": r.error,
+                "markdown_response": r.markdown_response,
+                "checks": [
+                    {
+                        "check_id": c.check_id,
+                        "result": c.result,
+                        "evidence": c.evidence,
+                        "summary": c.summary,
+                    }
+                    for c in r.checks
+                ],
+            }
+            for r in results
+        ],
+    }
+
+    tmp_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    tmp_path.rename(path)  # atomic on same filesystem
+    return path
+
+
 def load_all_scored_reports() -> list[tuple[dict, list[ScoredRun]]]:
     """Load ALL scored_*.json reports, newest first."""
     if not REPORTS_DIR.exists():
