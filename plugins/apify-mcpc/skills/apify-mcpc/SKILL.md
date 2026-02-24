@@ -113,25 +113,28 @@ Use when: user wants immediate data ("get me info about X", "fetch this URL"), n
 
 ## Workflow: Find → Understand → Validate → Run → Verify
 
-### Determine workflow scope
+**This workflow is the core of this skill. ALWAYS follow it. NEVER skip steps. NEVER run an Actor without completing the preceding steps.**
 
-Before starting the 7-step workflow, identify what the user actually needs:
+### STOP — Determine workflow scope first
 
-- **Docs-only** (user asks about Crawlee, Apify platform, configuration) → skip to [Docs-only Workflow](#docs-only-workflow) section
-- **Find-only** (user wants actor recommendation, comparison, schema inspection) → do Steps 1-2, present comparison, STOP. Only continue to Steps 3-7 if user says "run it"
-- **Full pipeline** (user wants data extracted/scraped) → follow all 7 steps
+**ALWAYS determine scope BEFORE doing anything else.** Wrong scope = wasted tokens and money.
 
-Copy this checklist and track progress:
+- **Docs-only** (user asks about Crawlee, Apify platform, configuration) → skip to [Docs-only Workflow](#docs-only-workflow) section. **STOP — do NOT search for Actors.**
+- **Find-only** (user wants actor recommendation, comparison, schema inspection) → do Steps 1-2, present comparison, **STOP. Do NOT proceed to Steps 3-7 unless user explicitly says "run it".**
+- **Full pipeline** (user wants data extracted/scraped) → follow all 7 steps with mandatory gates
+
+**Mandatory gates — these are HARD STOPS, not suggestions:**
 
 ```
-Task Progress:
-- [ ] Step 1: Match use case and search for Actors
-- [ ] Step 2: Fetch Actor details and input schema
-- [ ] Step 3: Build input and confirm with user
-- [ ] Step 4: Validate inputs against the target service
-- [ ] Step 5: Run the Actor
-- [ ] Step 6: Verify results make sense
-- [ ] Step 7: Get results and present to user
+- [ ] Step 1: Search for Actors (ALWAYS at least 2 searches: broad then narrow)
+- [ ] Step 2: Fetch details + input schema (ALWAYS read README)
+- [ ] GATE: STOP — show user the Actor choice + planned input. Wait for confirmation.
+- [ ] Step 3: Build input from schema + README
+- [ ] Step 4: Validate inputs (ALWAYS challenge assumptions about identifiers)
+- [ ] GATE: STOP — if ANY input value is guessed, tell user. Do NOT run with unverified inputs.
+- [ ] Step 5: Run the Actor (test run with limit=1 FIRST when uncertain)
+- [ ] Step 6: ALWAYS verify results — zero results = wrong input, not "no data"
+- [ ] Step 7: Get full results and present
 ```
 
 ### Step 1: Match use case and search for Actors
@@ -141,15 +144,19 @@ Task Progress:
 2. Search Apify Store for latest options:
 
 ```bash
+# First search: broad (platform name only)
+mcpc @apify tools-call search-actors keywords:="instagram"
+# Second search: narrow if needed (platform + data type)
 mcpc @apify tools-call search-actors keywords:="instagram profile"
 ```
 
-- Use 1-3 specific keywords — platform name + data type (e.g., "instagram posts", "amazon products")
+- **ALWAYS do at least two searches**: first broad (just platform name), then narrow (platform + data type) if the broad search returns too many irrelevant results
+- Prefer broad keywords first — `"TikTok"` before `"TikTok posts"`
 - Use keywords from the use-case file when available
 - Avoid generic terms like "crawler", "data extraction"
 - Pick all valid candidates for comparison
 - Actor identifier in results is `fullName` field (e.g., `apify/website-content-crawler`)
-- `search-actors` accepts `limit` (1–100, default 10) and `offset` (default 0) for pagination
+- Parameters: `keywords` (string), `limit` (1–100, default 10), `offset` (default 0), `category` (string, filter by category — leave empty for all)
 
 ### Step 2: Fetch Actor details and input schema
 
@@ -172,7 +179,7 @@ Valid `output` fields (`additionalProperties: false` — typo = error `-32602`):
 |-------|---------|
 | `description` | Actor description text |
 | `stats` | `actorInfo.stats`: `totalUsers`, `monthlyUsers`, `successRate`, `bookmarks` |
-| `pricing` | `actorInfo.pricing`: `model` (FREE/PAY_PER_EVENT/PRICE_PER_DATASET_ITEM/FLAT_PRICE_PER_MONTH), `isFree` |
+| `pricing` | `actorInfo.pricing`: `model` (FREE/PAY_PER_EVENT/PRICE_PER_DATASET_ITEM/FLAT_PRICE_PER_MONTH), `isFree`, and for PAY_PER_EVENT: `events[]` with per-tier costs (FREE/BRONZE/SILVER/GOLD/PLATINUM/DIAMOND tiers) |
 | `rating` | `actorInfo.rating`: `average` (out of 5), `count` |
 | `metadata` | `actorInfo`: `developer`, `categories`, `modifiedAt`, `isDeprecated` |
 | `inputSchema` | Full JSON Schema of input parameters |
@@ -203,13 +210,13 @@ mcpc @apify tools-call fetch-actor-details actor:="apify/website-content-crawler
 
 ### Step 3: Build input and confirm with user
 
-The schema alone is not enough — cross-reference with the README to understand what values the Actor actually expects:
+The schema alone is not enough — ALWAYS cross-reference with the README to understand what values the Actor actually expects:
 
 1. **Identify required fields** from the schema's `required` array
 2. **Read each field's `description`** — it often specifies exact formats, allowed values, or constraints not captured by `type` alone (e.g., "URL must include protocol", "comma-separated list", "ISO country code")
 3. **Check `prefill` values** — use as starting point, adapt to user's actual needs
 4. **When the schema description is unclear**, fetch the README (`output:='{"readme": true}'`) — it typically has usage examples with realistic inputs
-5. **Show the user** the planned input JSON with explanations. Wait for confirmation before running.
+5. **STOP — Show the user** the planned input JSON with explanations. **NEVER run an Actor without user confirmation of the input.** Wait for explicit approval.
 
 ### Step 4: Validate inputs against the target service
 
@@ -222,7 +229,7 @@ Before running the Actor, critically evaluate whether your input values make sen
 
 If you cannot confidently verify an input value, tell the user what you're uncertain about and suggest how to resolve it before spending money on a scrape.
 
-### Step 5: Run the Actor
+### Step 5: Run the Actor — NEVER without Steps 3-4 completed
 
 ```bash
 mcpc @apify tools-call call-actor actor:="apify/website-content-crawler" \
@@ -240,16 +247,16 @@ mcpc @apify tools-call call-actor actor:="<actor>" input:='...' previewOutput:=f
 ```
 
 **Sync response** (`structuredContent`): `runId`, `datasetId`, `itemCount`, `items[]`, `instructions`.
-**Async response** (`async:=true`): `runId`, `actorName`, `status`, `startedAt`, `input`.
-**Cost tracking**: `._meta.usageTotalUsd` — total run cost in USD (only on `call-actor`).
+**Async response** (`async:=true`): `runId`, `actorName`, `status`, `startedAt`, `input`. No cost data — `_meta` is only returned for sync runs.
+**Cost tracking** (sync only): `--json` response has `_meta` at the **JSON top-level** (not inside `structuredContent`): `jq '._meta.usageTotalUsd'` returns total run cost in USD.
 
 On input validation error, go back to Step 3.
 
 By default, `call-actor` runs synchronously (waits for completion). For long-running Actors, use `async:=true` — poll status with `get-actor-run`.
 
-### Step 6: Verify results make sense
+### Step 6: ALWAYS verify results — never skip
 
-Before presenting results to the user or fetching the full dataset, do a sanity check on the initial output:
+Before presenting results to the user or fetching the full dataset, ALWAYS do a sanity check on the initial output:
 
 1. **Check result count** — Does the number of results match expectations? Zero results likely means wrong input values, not "no data exists". A suspiciously low or high count warrants investigation.
 2. **Spot-check content** — Look at a few result items. Do they correspond to what was requested? If you scraped a person's profile, does the bio/description match who they actually are? If you scraped a business, is it in the right location/industry?
@@ -303,7 +310,7 @@ If the run was async or is still in progress, check status first:
 mcpc @apify tools-call get-actor-run runId:="<runId>" --json | jq '.structuredContent | {status, datasetId: .dataset.datasetId, itemCount: .dataset.itemCount}'
 ```
 
-**`get-actor-run` response** (`structuredContent`): `runId`, `actorName`, `status`, `startedAt`, `finishedAt`, `stats` (runTimeSecs, computeUnits, memMaxBytes, ...), `dataset` (datasetId, itemCount, schema).
+**`get-actor-run` response** (`structuredContent`): `runId`, `actorName`, `status`, `startedAt`, `finishedAt`, `stats` (runTimeSecs, computeUnits, memMaxBytes, ...), `dataset` (datasetId, itemCount, schema, previewItems[]).
 
 Check the use-case file for suggested follow-up workflows after presenting results.
 
@@ -346,29 +353,20 @@ The input schema from `fetch-actor-details` is standard JSON Schema, but with Ap
 
 ## How to Compare Actors
 
-| Metric | Prefer |
-|--------|--------|
-| `isDeprecated` | Always `false` — eliminate first |
-| `pricing.model` / cost per run | **Cheapest that works** — prefer FREE > PAY_PER_EVENT > PRICE_PER_DATASET_ITEM |
-| Author `apify/` | Official, often more reliable |
-| `successRate` | Higher (>90% is good, <80% is a red flag) |
-| `totalUsers` | Higher = battle-tested (>100 users = safe bet) |
-| `modifiedAt` | More recent = maintained (only via `fetch-actor-details` with `metadata` flag) |
+`search-actors` already returns `stats`, `rating`, `pricing`, `isDeprecated`, `developer` per actor — enough for comparison without extra calls. Use `fetch-actor-details` only when you need `inputSchema`, `readme`, `outputSchema`, or `modifiedAt`.
 
-**Selection rule**: Pick the cheapest Actor that meets functional requirements. Only choose a more expensive Actor if the cheaper one fails, lacks required features, or has poor success rate.
+**Decision order** (eliminate top-down):
 
-**Fallback chain**: If the chosen Actor fails (error, bad data, deprecated), try the next candidate from the comparison. Don't ask the user before trying an alternative — just report what happened and what you're trying instead. Only stop and ask if all candidates fail.
+1. `isDeprecated` = `true` → eliminate immediately
+2. `successRate` < 80% → red flag, skip unless only option
+3. `pricing.model` → prefer FREE > PAY_PER_EVENT > PRICE_PER_DATASET_ITEM (cheapest that works)
+4. `totalUsers` > 100 → battle-tested, safe bet
+5. Author `apify/` → official, often more reliable
+6. `modifiedAt` more recent → maintained (only via `fetch-actor-details` with `metadata` flag)
 
-When in doubt, present top 2-3 to the user with stats.
+**Selection rule**: Pick the cheapest Actor that meets functional requirements.
 
-**Quick comparison from search results** — `search-actors` already returns `stats`, `rating`, `pricing`, `isDeprecated`, `developer` per actor. For basic comparison, no need to call `fetch-actor-details`:
-
-```bash
-mcpc @apify tools-call search-actors keywords:="instagram scraper" limit:=5 --json \
-  | jq '[.structuredContent.actors[] | {fullName, rating: .rating.average, successRate: .stats.successRate, users: .stats.totalUsers, pricing: .pricing.model, deprecated: .isDeprecated}]'
-```
-
-Use `fetch-actor-details` only when you need `inputSchema`, `readme`, `outputSchema`, or `modifiedAt`.
+**Fallback chain**: If the chosen Actor fails (error, bad data, deprecated), try the next candidate. Don't ask the user before trying an alternative — just report what happened. Only stop and ask if all candidates fail.
 
 ## Docs-only Workflow
 

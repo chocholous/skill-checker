@@ -40,7 +40,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 - Facebook Ad Library scraping returns only active ads — historical ads are not available
 - Comparing follower counts across platforms is misleading (different user bases)
 - Google Maps data varies by region — search queries must include location context
-- Some Actors return cached data — check `lastRunAt` for freshness
+- Some Actors return cached data — check `modifiedAt` (via `fetch-actor-details` with `metadata` flag) for freshness
 
 ## After Completion
 Suggest: compare metrics in a table, track changes over time with recurring scrapes, deep-dive into competitor content strategy.

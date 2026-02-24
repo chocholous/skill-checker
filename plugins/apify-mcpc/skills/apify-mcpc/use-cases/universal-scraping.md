@@ -25,7 +25,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 - **Strong**: All major social platforms (Instagram, Facebook, TikTok, YouTube)
 - **Strong**: Google (Search, Maps, Trends), review sites (Booking, TripAdvisor)
 - **Medium**: E-commerce (Amazon, eBay — search for platform-specific Actors)
-- **Expanding**: Apify Store has 3000+ Actors — if not listed here, search for it
+- **Expanding**: Apify Store has thousands of Actors — if not listed here, use `search-actors`
 
 ## Multi-Actor Workflows
 | Goal | Step 1 | Step 2 |

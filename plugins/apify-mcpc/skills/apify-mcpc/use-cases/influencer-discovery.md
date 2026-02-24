@@ -18,7 +18,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 | YouTube creators | `streamers/youtube-channel-scraper` | Channel metrics |
 | TikTok influencers | `clockworks/tiktok-scraper` | Comprehensive TikTok data |
 | TikTok user search | `clockworks/tiktok-user-search-scraper` | Find users by keywords |
-| TikTok live streamers | `clockworks/tiktok-live-scraper` | Live streaming creators |
+| ~~TikTok live streamers~~ | ~~`clockworks/tiktok-live-scraper`~~ | **DEPRECATED** — use `search-actors` for alternatives |
 
 ## Search Keywords
 `instagram influencer`, `tiktok creator`, `youtube channel`, `social media profile`, `influencer scraper`

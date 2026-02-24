@@ -15,7 +15,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 | Event market analysis | `apify/facebook-events-scraper` | Event activity |
 | Community needs | `apify/facebook-groups-scraper` | Consumer discussions |
 | Market landscape | `apify/facebook-pages-scraper` | Business page data |
-| Niche market sizing | `apify/instagram-hashtag-stats` | Hashtag volume |
+| Niche market sizing | `apify/instagram-hashtag-analytics-scraper` | Hashtag volume |
 | Niche content activity | `apify/instagram-hashtag-scraper` | Content trends |
 | Hospitality market | `voyager/booking-scraper` | Hotel data + pricing |
 | Tourism market | `maxcopell/tripadvisor-reviews` | Review-based insights |
@@ -33,7 +33,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 |---|---|---|
 | Market saturation analysis | `compass/crawler-google-places` → | `apify/google-trends-scraper` |
 | Hospitality benchmarking | `voyager/booking-scraper` → | `voyager/booking-reviews-scraper` |
-| Niche validation | `apify/instagram-hashtag-stats` → | `apify/instagram-hashtag-scraper` |
+| Niche validation | `apify/instagram-hashtag-analytics-scraper` → | `apify/instagram-hashtag-scraper` |
 
 ## Gotchas
 - Google Trends returns relative interest (0-100 scale), not absolute search volumes

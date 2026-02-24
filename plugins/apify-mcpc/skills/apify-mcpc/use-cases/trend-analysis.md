@@ -10,7 +10,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 |---|---|---|
 | Search trends | `apify/google-trends-scraper` | Google Trends data |
 | Instagram hashtag content | `apify/instagram-hashtag-scraper` | Hashtag trends |
-| Instagram hashtag metrics | `apify/instagram-hashtag-stats` | Performance stats |
+| Instagram hashtag metrics | `apify/instagram-hashtag-analytics-scraper` | Performance stats |
 | Instagram trending discovery | `apify/instagram-search-scraper` | Search trends |
 | Instagram visual trends | `apify/instagram-post-scraper` | Post analysis |
 | Facebook product trends | `apify/facebook-marketplace-scraper` | Marketplace activity |
@@ -33,7 +33,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 ## Multi-Actor Workflows
 | Goal | Step 1 | Step 2 |
 |---|---|---|
-| Cross-platform trend validation | `apify/google-trends-scraper` → | `apify/instagram-hashtag-stats` |
+| Cross-platform trend validation | `apify/google-trends-scraper` → | `apify/instagram-hashtag-analytics-scraper` |
 | Content opportunity finding | `clockworks/tiktok-trends-scraper` → | `clockworks/tiktok-hashtag-scraper` |
 | Seasonal trend tracking | `apify/google-trends-scraper` → | Platform-specific content scraper |
 
