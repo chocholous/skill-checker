@@ -4,6 +4,15 @@ Test how well your SKILL.md holds up against real user prompts — before users 
 
 Sends skills + simulated scenarios to Claude via `claude -p`, identifies **complexities** (gaps, ambiguities, failures) scored by severity across 5 categories, and produces Markdown + JSON reports.
 
+This repo contains two independent parts:
+
+| Part | What | Location |
+|---|---|---|
+| **Skill Checker** | CLI + Web tool for testing SKILL.md quality | root (`sim.py`, `server/`, `web/`) |
+| **apify-mcpc** | Claude Code plugin for Apify Store access | [`plugins/apify-mcpc/`](plugins/apify-mcpc/README.md) |
+
+The plugin is one of the 13 skills tested by Skill Checker, but is otherwise a standalone project with its own README and license.
+
 ## How it works
 
 ```
@@ -104,15 +113,9 @@ Production: `make build` → `web/dist/` served by FastAPI.
 | Dispatcher | 9 | audience-analysis, brand-monitoring, competitor-intelligence, content-analytics, influencer-discovery, lead-generation, market-research, trend-analysis, ultimate-scraper |
 | Dispatcher outlier | 1 | ecommerce (inline schema, no mcpc) |
 | Dev | 2 | actor-development, actorization |
-| MCPC plugin | 1 | [apify-mcpc](plugins/apify-mcpc/README.md) |
+| MCPC plugin | 1 | apify-mcpc (lives in `plugins/apify-mcpc/`) |
 
-Skills registered in `skills_manifest.yaml`. Dispatcher skills cloned from [apify/agent-skills](https://github.com/apify/agent-skills) via `make setup`.
-
-## apify-mcpc plugin
-
-Claude Code plugin that gives Claude access to Apify Store — search, evaluate, and run Actors through [mcpc CLI](https://www.npmjs.com/package/@apify/mcpc). Includes a 7-step skill workflow with mandatory user confirmation gates and 9 domain-specific use-case guides.
-
-See **[plugins/apify-mcpc/README.md](plugins/apify-mcpc/README.md)** for full details (tools, connection modes, installation).
+Skills registered in `skills_manifest.yaml`. Dispatcher skills cloned from [apify/agent-skills](https://github.com/apify/agent-skills) via `make setup`. The apify-mcpc plugin is an independent Claude Code plugin that happens to be tested here.
 
 <details>
 <summary><strong>5-category taxonomy (37 checks)</strong></summary>
@@ -207,8 +210,7 @@ web/                      # React 19 + Vite + TypeScript
   src/components/         #   HeatmapTable, YamlEditor, MarkdownViewer
   src/api/                #   Typed API client
 
-plugins/apify-mcpc/       # Claude Code plugin
-  skills/apify-mcpc/      #   SKILL.md + 9 use-case guides
+plugins/apify-mcpc/       # Independent plugin (tested as one of the skills)
 
 skills/                   # Cloned apify/agent-skills (gitignored)
 reports/                  # Generated output (gitignored)
@@ -271,10 +273,6 @@ make update-skills    # git pull in skills/
 
 ## Related docs
 
-- [plugins/apify-mcpc/README.md](plugins/apify-mcpc/README.md) — mcpc plugin details
+- [plugins/apify-mcpc/README.md](plugins/apify-mcpc/README.md) — apify-mcpc plugin (independent project)
 - [web/README.md](web/README.md) — frontend setup
 - [skills/README.md](skills/README.md) — upstream Apify agent skills
-
-## License
-
-The apify-mcpc plugin is licensed under [Apache 2.0](plugins/apify-mcpc/LICENSE).
