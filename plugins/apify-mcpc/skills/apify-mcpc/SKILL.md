@@ -231,7 +231,7 @@ The schema alone is not enough — ALWAYS cross-reference with the README to und
 2. **Read each field's `description`** — it often specifies exact formats, allowed values, or constraints not captured by `type` alone (e.g., "URL must include protocol", "comma-separated list", "ISO country code")
 3. **Check `prefill` values** — use as starting point, adapt to user's actual needs
 4. **When the schema description is unclear**, fetch the README (`output:='{"readme": true}'`) — it typically has usage examples with realistic inputs
-5. **STOP — Show the user** the planned input JSON with explanations. **NEVER run an Actor without user confirmation of the input.** Wait for explicit approval.
+5. **STOP — Show the user** the planned input JSON with explanations. **NEVER run without user confirmation.** Before displaying: if any field name matches `/(cookie|token|password|secret|auth|key)/i`, replace the value with `<REDACTED>` and confirm only the type/format needed — never display credentials in chat. Wait for explicit approval.
 
 ### Step 4: Validate inputs against the target service
 
@@ -360,9 +360,9 @@ done
 Then confirm the save and summarize to the user:
 
 ```bash
-echo "Saved $(jq length results.json) items to results.json"
-jq '.[0:2]' results.json   # show 2 examples to user
+jq 'length, .[0:2]' results.json   # item count + 2 examples
 ```
+**Other formats** — `get-actor-output` is JSON only. For CSV/Excel/XML download directly: `https://api.apify.com/v2/datasets/{datasetId}/items?format=csv&clean=true&token=${APIFY_TOKEN}` (formats: `csv`, `xlsx`, `jsonl`, `xml`).
 
 **`fields` gotcha**: dot notation flattens keys — `fields:="crawl.httpStatusCode"` returns `{"crawl.httpStatusCode": 200}`, not `{"crawl": {"httpStatusCode": 200}}`. In jq use `."crawl.httpStatusCode"` (quoted).
 

@@ -40,6 +40,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 - Google Maps business counts vary by zoom level and search radius — normalize queries
 - Facebook Marketplace data is location-dependent — always specify geographic area
 - Booking.com pricing changes daily — snapshot is point-in-time, not historical
+- **Google Maps result cap**: `compass/google-maps-extractor` enforces a hard 120-result limit per query (platform constraint, not actor). For large-scale collection, the actor uses geographic subdivision — configure via location, zoom, and grid input fields. Setting `maxResults: 100000` on a single query will silently cap.
 
 ## After Completion
 Suggest: visualize geographic data on map, compare pricing across regions, validate findings with Google Trends, estimate market size.

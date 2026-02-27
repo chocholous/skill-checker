@@ -39,7 +39,8 @@ Known good starting points. Always verify via `search-actors` for latest options
 
 ## Gotchas
 - Google Trends data has 24-48h delay for real-time trends; use "past 7 days" for freshest data
-- TikTok trends are extremely volatile — what's trending now may not be in 2 hours
+- **TikTok trending scope**: `clockworks/tiktok-trends-scraper` and `clockworks/tiktok-discover-scraper` scrape the public Discover page and trending hashtag posts — not the personalized For You Page (FYP). Results reflect what's globally trending at scrape time, not what a specific user sees.
+- TikTok trends are extremely volatile — what's trending now may not be in 2 hours; always treat results as a point-in-time snapshot
 - Instagram hashtag stats show cumulative posts, not recent velocity — combine with hashtag content scraper
 - Trending sounds on TikTok require specific sound URLs, not search queries
 

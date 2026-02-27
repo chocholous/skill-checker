@@ -38,7 +38,7 @@ Known good starting points. Always verify via `search-actors` for latest options
 ## Gotchas
 - Follower lists on Instagram are rate-limited — expect partial results for large accounts
 - Facebook follower scraping requires public pages; private profiles return nothing
-- "Audience demographics" is inferred from public data (bios, locations), not platform analytics
+- **"Audience demographics" ≠ platform analytics**: precise breakdowns (age %, gender %, location %) live in Instagram Insights — only accessible to the account owner via Meta API, not publicly scrapable. Public scrapers infer rough audience profile from bios and geo-tagged posts only.
 - TikTok follower counts update with delay — don't compare snapshots taken minutes apart
 
 ## After Completion
