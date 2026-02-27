@@ -17,6 +17,7 @@ themselves, but if interrupted mid-run, manually uninstall with:
 """
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -30,10 +31,14 @@ PLUGIN_NAME = "apify-mcpc"
 # Unset CLAUDECODE so claude -p can be called from within a Claude Code session
 _ENV = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
 
+# Resolve claude binary once at import time — used as explicit executable so
+# PATH overrides in individual tests don't accidentally hide it
+_CLAUDE_BIN = shutil.which("claude") or "claude"
+
 
 def _run_plugin(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["claude", "plugin", *args],
+        [_CLAUDE_BIN, "plugin", *args],
         capture_output=True,
         text=True,
         env=_ENV,
@@ -44,7 +49,7 @@ def _run_plugin(*args: str) -> subprocess.CompletedProcess:
 def _run_claude(
     prompt: str, *, skip_permissions: bool = True, path_override: str | None = None
 ) -> subprocess.CompletedProcess:
-    cmd = ["claude", "-p", "--output-format", "json", "--no-session-persistence"]
+    cmd = [_CLAUDE_BIN, "-p", "--output-format", "json", "--no-session-persistence"]
     if skip_permissions:
         cmd.append("--dangerously-skip-permissions")
     env = _ENV.copy()
@@ -127,11 +132,13 @@ def test_skill_guides_user_without_mcpc(installed_plugin, tmp_path):
     """A: Skill loads and explains how to install mcpc when it's missing.
 
     Simulates a user who installed the plugin but hasn't set up mcpc yet.
-    Creates a fake mcpc that exits 127 (not found) and shadows the real one —
-    claude itself remains reachable via the rest of PATH.
+    mcpc and node live in the same directory (e.g. nvm bin), so we can't
+    strip PATH entirely — that would hide node and break claude too. Instead,
+    we shadow mcpc with a failing stub prepended to PATH. claude is called via
+    its absolute path (_CLAUDE_BIN) so PATH changes don't affect it.
     """
     fake_mcpc = tmp_path / "mcpc"
-    fake_mcpc.write_text("#!/bin/sh\necho 'mcpc: command not found' >&2\nexit 127\n")
+    fake_mcpc.write_text("#!/bin/sh\nexit 127\n")
     fake_mcpc.chmod(0o755)
 
     result = _run_claude(
