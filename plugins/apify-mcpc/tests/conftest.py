@@ -49,6 +49,8 @@ elif [[ "$CMD" == *"--version"* ]]; then
     echo "1.0.0-spy"
 elif [[ "$CMD" == *"--help"* ]]; then
     printf 'Usage: mcpc [options] <server> <command>\\n'
+elif [[ "$CMD" == *"call-actor"* && "$CMD" == *"async:=true"* ]]; then
+    printf '{"content":[{"type":"text","text":"Actor run started. Run ID: spy-run-abc. Status: RUNNING."}],"structuredContent":{"runId":"spy-run-abc","actorName":"apify/instagram-post-scraper","status":"RUNNING","startedAt":"2026-02-27T21:00:00Z"}}\\n'
 elif [[ "$CMD" == *"call-actor"* && "$CMD" == *"--json"* ]]; then
     printf '{"_meta":{"usageTotalUsd":0.0042},"content":[{"type":"text","text":"Run completed. 1 item."}],"structuredContent":{"runId":"spy-run-abc","datasetId":"spy-ds-def","itemCount":1,"items":[{"url":"https://example.com","title":"Test Page"}]}}\\n'
 elif [[ "$CMD" == *"call-actor"* ]]; then
@@ -141,7 +143,7 @@ def run_claude(
         capture_output=True,
         text=True,
         env=env,
-        timeout=120,
+        timeout=180,
     )
 
 

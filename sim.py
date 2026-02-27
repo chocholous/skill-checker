@@ -15,12 +15,14 @@ Usage:
 import argparse
 import asyncio
 import sys
+import uuid
 from pathlib import Path
 
 from bp_linter import bp_checks_to_run_results, run_bp_checks
 from sim_core import (
     DEFAULT_CONCURRENCY,
     Scenario,
+    create_run_snapshot,
     get_scenario_models,
     get_target_skills,
     load_domain_scenarios,
@@ -31,6 +33,7 @@ from sim_core import (
     run_scored_scenario,
     save_reports,
     save_scored_report,
+    snapshot_to_metadata,
 )
 
 
@@ -82,7 +85,14 @@ async def main() -> None:
     parser = argparse.ArgumentParser(
         description="Skill Checker — test SKILL.md quality with Claude models"
     )
-    parser.add_argument("--scenario", "-s", help="Run specific scenario by ID")
+    parser.add_argument(
+        "--scenario",
+        "-s",
+        action="append",
+        dest="scenarios",
+        metavar="SCENARIO_ID",
+        help="Run specific scenario by ID (repeat for multiple)",
+    )
     parser.add_argument(
         "--model",
         "-m",
@@ -140,6 +150,15 @@ async def main() -> None:
                     task_list.append((scenario, skill_name))
 
         total = len(task_list)
+
+        # Create snapshot
+        run_id = uuid.uuid4().hex[:12]
+        skill_names_used = sorted({sk for _, sk in task_list})
+        scenario_files_used = sorted({s.source_file for s, _ in task_list})
+        snapshot = create_run_snapshot(
+            run_id, manifest, skill_names_used, scenario_files_used
+        )
+
         print(
             f"Scored run: {total} tasks, model={model}, concurrency={args.concurrency}"
         )
@@ -165,6 +184,7 @@ async def main() -> None:
             "model": model,
             "domains": list(domain_scenarios.keys()),
             "concurrency": args.concurrency,
+            "snapshot": snapshot_to_metadata(snapshot),
         }
         report_path = save_scored_report(scored_results, metadata)
         print(f"\nScored report saved: {report_path}")
@@ -199,10 +219,15 @@ async def main() -> None:
             )
             list_scenarios(all_scenarios)
             sys.exit(1)
-    if args.scenario:
-        scenarios = [s for s in scenarios if s.id == args.scenario]
-        if not scenarios:
-            print(f"Error: scenario '{args.scenario}' not found", file=sys.stderr)
+    if args.scenarios:
+        selected_ids = set(args.scenarios)
+        scenarios = [s for s in scenarios if s.id in selected_ids]
+        missing = selected_ids - {s.id for s in scenarios}
+        if missing:
+            print(
+                f"Error: scenario(s) not found: {', '.join(sorted(missing))}",
+                file=sys.stderr,
+            )
             list_scenarios(all_scenarios)
             sys.exit(1)
 
