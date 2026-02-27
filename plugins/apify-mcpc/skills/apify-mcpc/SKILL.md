@@ -303,19 +303,57 @@ mcpc @apify tools-call call-actor actor:="<actor>" \
 
 ### Step 7: Get results
 
-Use `datasetId` from Step 5 (not actor name):
+**NEVER load full datasets into context.** Large responses flood the context and degrade performance. Always follow the three-step pattern below.
+
+#### 7a. Check total count first
 
 ```bash
-mcpc @apify tools-call get-actor-output datasetId:="<datasetId-from-step-5>"
+mcpc @apify tools-call get-actor-output datasetId:="<id>" limit:=1 --json \
+  | jq '.structuredContent | {totalItemCount, fields: (.items[0] | keys)}'
 ```
 
-With field selection and pagination:
+This tells you: how many items exist and what fields are available — without loading any real data.
+
+#### 7b. Sample to verify data quality
+
+Before saving or presenting, spot-check a few items:
 
 ```bash
-mcpc @apify tools-call get-actor-output datasetId:="abc123" fields:="title,url,price" limit:=50
+mcpc @apify tools-call get-actor-output datasetId:="<id>" limit:=5
 ```
 
-Dot notation in `fields` (e.g., `fields:="url,crawl.httpStatusCode"`) works but **flattens** the output — keys become `"crawl.httpStatusCode"` not nested. In jq use `."crawl.httpStatusCode"` (quoted), not `.crawl.httpStatusCode`.
+Read the output. Verify the data matches the expected entity (see Step 6). If it looks wrong, re-run from Step 3 — don't save bad data.
+
+#### 7c. Save to file — don't load into context
+
+Once the sample looks correct, save the full dataset to a local file. The `>` redirect sends data to disk; nothing enters the context.
+
+```bash
+# All items, all fields
+mcpc @apify tools-call get-actor-output datasetId:="<id>" --json \
+  | jq '.structuredContent.items' > results.json
+
+# Selected fields only (reduces file size)
+mcpc @apify tools-call get-actor-output datasetId:="<id>" \
+  fields:="title,url,price" --json \
+  | jq '.structuredContent.items' > results.json
+
+# Large dataset — paginate into one file
+for offset in 0 100 200; do
+  mcpc @apify tools-call get-actor-output datasetId:="<id>" \
+    limit:=100 offset:=$offset --json \
+    | jq '.structuredContent.items[]' >> results.jsonl
+done
+```
+
+Then confirm the save and summarize to the user:
+
+```bash
+echo "Saved $(jq length results.json) items to results.json"
+jq '.[0:2]' results.json   # show 2 examples to user
+```
+
+**`fields` gotcha**: dot notation flattens keys — `fields:="crawl.httpStatusCode"` returns `{"crawl.httpStatusCode": 200}`, not `{"crawl": {"httpStatusCode": 200}}`. In jq use `."crawl.httpStatusCode"` (quoted).
 
 **`get-actor-output` response** (`structuredContent`): `datasetId`, `items[]`, `itemCount`, `totalItemCount`, `offset`, `limit`.
 
