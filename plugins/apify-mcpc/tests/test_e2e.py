@@ -127,12 +127,17 @@ def test_skill_guides_user_without_mcpc(installed_plugin, tmp_path):
     """A: Skill loads and explains how to install mcpc when it's missing.
 
     Simulates a user who installed the plugin but hasn't set up mcpc yet.
-    The `!`mcpc --version`` command will fail — Claude should explain the setup.
+    Creates a fake mcpc that exits 127 (not found) and shadows the real one —
+    claude itself remains reachable via the rest of PATH.
     """
+    fake_mcpc = tmp_path / "mcpc"
+    fake_mcpc.write_text("#!/bin/sh\necho 'mcpc: command not found' >&2\nexit 127\n")
+    fake_mcpc.chmod(0o755)
+
     result = _run_claude(
         "/apify-mcpc I want to scrape Instagram posts",
         skip_permissions=True,
-        path_override=str(tmp_path),  # empty PATH — mcpc not found
+        path_override=f"{tmp_path}:{os.environ.get('PATH', '')}",
     )
     assert result.returncode == 0, f"claude -p failed:\nstderr: {result.stderr}"
 
