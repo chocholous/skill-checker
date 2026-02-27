@@ -269,6 +269,17 @@ On input validation error, go back to Step 3.
 
 By default, `call-actor` runs synchronously (waits for completion). For long-running Actors, use `async:=true` — poll status with `get-actor-run`.
 
+#### Async resume
+
+Save `runId` immediately when using `async:=true` — sessions can reset mid-run:
+
+```bash
+mcpc ... async:=true --json | jq -r '.structuredContent.runId' | tee run.id
+mcpc @apify tools-call get-actor-run runId:="$(cat run.id)"  # resume/check
+```
+
+**Cost tracking**: auto-logged to `~/.apify-costs.log` per `call-actor --json` run. Check with `/apify-status`.
+
 ### Step 6: ALWAYS verify results — never skip
 
 Before presenting results to the user or fetching the full dataset, ALWAYS do a sanity check on the initial output:
