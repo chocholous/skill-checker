@@ -6,12 +6,12 @@ Sends skills + simulated scenarios to Claude via `claude -p`, identifies **compl
 
 This repo contains two independent parts:
 
-| Part | What | Location |
+| Part | What | Docs |
 |---|---|---|
-| **Skill Checker** | CLI + Web tool for testing SKILL.md quality | root (`sim.py`, `server/`, `web/`) |
-| **apify-mcpc** | Claude Code plugin for Apify Store access | [`plugins/apify-mcpc/`](plugins/apify-mcpc/README.md) |
+| **Skill Checker** | CLI + Web tool for testing SKILL.md quality | this README |
+| **apify-mcpc plugin** | Claude Code plugin — search, evaluate, and run Apify Actors via mcpc CLI | **[plugins/apify-mcpc/README.md](plugins/apify-mcpc/README.md)** |
 
-The plugin is one of the 13 skills tested by Skill Checker, but is otherwise a standalone project with its own README and license.
+The two projects are independent. The plugin also happens to be one of the skills tested by Skill Checker.
 
 ## How it works
 
@@ -40,7 +40,7 @@ SKILL.md  +  scenario (YAML)
 git clone <repo-url> && cd skill-checker/main
 make setup                          # venv + pip + npm + clone skills
 make test                           # pytest + dry-run + lint
-python3 sim.py -s dc-1 -m haiku    # run one scenario (cheapest)
+python3 sim.py -s wf-mcpc-scope -m haiku    # run one scenario (cheapest)
 ```
 
 > Run `sim.py` from a regular terminal, **not** from a Claude Code session (`claude -p` nesting doesn't work).
@@ -57,7 +57,7 @@ python3 sim.py [OPTIONS]
 |---|---|---|
 | `--list` | | List all scenarios |
 | `--dry-run` | | Preview runs + cost estimate |
-| `--scenario ID` | `-s` | Run specific scenario |
+| `--scenario ID` | `-s` | Run specific scenario (repeatable: `-s id1 -s id2`) |
 | `--model NAME` | `-m` | Model override (repeatable) |
 | `--skill NAME` | | Filter by target skill |
 | `--concurrency N` | `-c` | Max parallel calls (default: 3) |
@@ -71,7 +71,10 @@ python3 sim.py --list
 python3 sim.py --dry-run
 
 # Single scenario
-python3 sim.py -s dc-1 -m haiku
+python3 sim.py -s wf-mcpc-scope -m haiku
+
+# Multiple scenarios
+python3 sim.py -s apf-budget-large -s sec-fb-no-login -m sonnet
 
 # Multi-model full run
 python3 sim.py -m sonnet -m opus

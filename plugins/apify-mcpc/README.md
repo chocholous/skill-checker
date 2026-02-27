@@ -7,13 +7,16 @@ Claude Code plugin for finding, evaluating, and running [Apify Actors](https://a
 - [What it does](#what-it-does)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
+- [Skills](#skills)
 - [Use cases](#use-cases)
 - [Skill workflow](#skill-workflow)
 - [Available mcpc tools](#available-mcpc-tools)
 - [Connection modes](#connection-modes)
+- [Cost tracking](#cost-tracking)
 - [User-Agent tracking](#user-agent-tracking)
 - [Plugin structure](#plugin-structure)
 - [Features](#features)
+- [Testing](#testing)
 - [Related](#related)
 - [License](#license)
 
@@ -22,7 +25,8 @@ Claude Code plugin for finding, evaluating, and running [Apify Actors](https://a
 - Searches Apify Store for the right Actor for any scraping/automation task
 - Compares Actors by stats, ratings, and maintenance status
 - Reads input schemas to build correct Actor inputs
-- Runs Actors and retrieves structured results
+- Runs Actors and retrieves structured results (sync or async with resume)
+- Tracks run costs automatically via PostToolUse hook → `~/.apify-costs.log`
 - Covers 8 marketing intelligence use cases with domain-specific guidance, plus multi-actor workflow patterns
 
 ## Prerequisites
@@ -44,6 +48,15 @@ claude plugin install apify-mcpc@skill-checker
 ```bash
 claude --plugin-dir ./plugins/apify-mcpc
 ```
+
+## Skills
+
+This plugin provides two slash commands:
+
+| Command | Description |
+|---|---|
+| `/apify-mcpc` | Main skill — find, evaluate, and run Apify Actors (full 7-step workflow) |
+| `/apify-status` | Show active mcpc sessions and run cost history from `~/.apify-costs.log` |
 
 ## Use cases
 
@@ -101,6 +114,16 @@ The agent determines scope first — **docs-only** (Crawlee/platform questions),
 
 The prerequisite check script (`check_apify.sh`) verifies both sessions are active before the skill starts.
 
+## Cost tracking
+
+A PostToolUse hook fires after every `call-actor --json` run and appends to `~/.apify-costs.log`:
+
+```
+2026-02-27T21:00:00Z    actor=apify/instagram-post-scraper    usd=0.0042
+```
+
+Override the log path with `APIFY_COST_LOG=/path/to/file`. View the log and session totals with `/apify-status`.
+
 ## User-Agent tracking
 
 All mcpc calls include a `-H "User-Agent: apify-agent-skills/apify-mcpc-<version>/<action>"` header for Apify usage analytics, mirroring the `User-Agent` pattern used by other Apify agent skills in their `run_actor.js` scripts. The version is read from `plugin.json` at runtime.
@@ -110,24 +133,34 @@ All mcpc calls include a `-H "User-Agent: apify-agent-skills/apify-mcpc-<version
 ```
 plugins/apify-mcpc/
 ├── .claude-plugin/
-│   └── plugin.json              # Plugin manifest
+│   └── plugin.json              # Plugin manifest (hooks, version, allowed-tools)
+├── scripts/
+│   └── track-cost.sh            # PostToolUse hook — logs call-actor costs
 ├── skills/
-│   └── apify-mcpc/
-│       ├── SKILL.md             # Main skill (workflow, mcpc reference)
-│       ├── scripts/
-│       │   └── check_apify.sh   # Prerequisite check
-│       └── references/
-│           ├── issue-reporting.md   # Issue reporting template
-│           └── use-cases/
-│               ├── audience-analysis.md
-│               ├── brand-monitoring.md
-│               ├── competitor-intelligence.md
-│               ├── content-analytics.md
-│               ├── influencer-discovery.md
-│               ├── lead-generation.md
-│               ├── market-research.md
-│               ├── trend-analysis.md
-│               └── multi-actor-workflows.md
+│   ├── apify-mcpc/
+│   │   ├── SKILL.md             # Main skill (7-step workflow, mcpc reference)
+│   │   ├── scripts/
+│   │   │   └── check_apify.sh   # Prerequisite check (mcpc version + sessions)
+│   │   └── references/
+│   │       ├── issue-reporting.md
+│   │       └── use-cases/
+│   │           ├── audience-analysis.md
+│   │           ├── brand-monitoring.md
+│   │           ├── competitor-intelligence.md
+│   │           ├── content-analytics.md
+│   │           ├── influencer-discovery.md
+│   │           ├── lead-generation.md
+│   │           ├── market-research.md
+│   │           ├── trend-analysis.md
+│   │           └── multi-actor-workflows.md
+│   └── apify-status/
+│       └── SKILL.md             # /apify-status command (sessions + cost log)
+├── tests/
+│   ├── conftest.py              # Shared fixtures, spy mcpc, run_claude helper
+│   ├── test_hook.py             # Unit tests for track-cost.sh (5)
+│   ├── test_install.py          # Install/uninstall tests (2)
+│   ├── test_integration.py      # Spy mcpc integration tests (11)
+│   └── test_skills.py           # E2E skill tests via claude -p (5)
 ├── LICENSE                      # Apache 2.0
 └── README.md
 ```
@@ -138,6 +171,25 @@ plugins/apify-mcpc/
 - **Allowed tools**: Pre-approved `Bash(mcpc *)`, `Bash(jq *)`, `Read`, `Grep`, `Glob` for frictionless workflow
 - **Progressive disclosure**: SKILL.md stays under 500 lines; use-case details load on demand
 - **Workflow checklist**: 7-step Find → Understand → Validate → Run → Verify process
+- **Cost tracking**: PostToolUse hook logs every `call-actor --json` cost to `~/.apify-costs.log`
+- **Async resume**: Saves `runId` immediately for long-running actors; resumes with `get-actor-run` after session reset
+- **Session overview**: `/apify-status` command shows active mcpc sessions and cost totals
+
+## Testing
+
+```bash
+# Run all 23 tests (requires plugin installed from marketplace)
+CLAUDECODE= pytest plugins/apify-mcpc/tests/ -v
+```
+
+| File | Tests | What |
+|---|---|---|
+| `test_hook.py` | 5 | Unit tests for `track-cost.sh` (no Claude) |
+| `test_install.py` | 2 | Install/uninstall from marketplace |
+| `test_integration.py` | 11 | Spy mcpc — hook wiring, workflow order, async resume, reference files, data handling |
+| `test_skills.py` | 5 | E2E skill tests via `claude -p` (missing mcpc, use cases, permissions, apify-status) |
+
+Tests use a spy mcpc binary that records all calls to a log file and returns canned JSON responses — no real Apify account needed.
 
 ## Related
 
