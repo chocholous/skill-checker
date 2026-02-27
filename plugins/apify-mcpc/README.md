@@ -23,7 +23,7 @@ Claude Code plugin for finding, evaluating, and running [Apify Actors](https://a
 - Compares Actors by stats, ratings, and maintenance status
 - Reads input schemas to build correct Actor inputs
 - Runs Actors and retrieves structured results
-- Covers 9 marketing intelligence use cases with domain-specific guidance
+- Covers 8 marketing intelligence use cases with domain-specific guidance, plus multi-actor workflow patterns
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ claude --plugin-dir ./plugins/apify-mcpc
 
 ## Use cases
 
-The plugin includes 9 use-case files with suggested Actors, search keywords, and gotchas:
+The plugin includes 8 use-case files with suggested Actors, search keywords, and gotchas, plus a multi-actor workflow patterns reference:
 
 | Use Case | Description |
 |---|---|
@@ -59,7 +59,7 @@ The plugin includes 9 use-case files with suggested Actors, search keywords, and
 | Lead Generation | B2B/B2C leads, contact enrichment, prospecting |
 | Market Research | Market conditions, pricing, geographic opportunities |
 | Trend Analysis | Emerging trends, viral content, content strategy |
-| Universal Scraping | General-purpose scraping for any platform |
+| Multi-Actor Workflows | Chaining Actors, handle discovery via SERP, enrichment |
 
 Actor tables in use-case files are **suggestions, not closed lists**. The agent always searches Apify Store for the latest options.
 
@@ -127,7 +127,7 @@ plugins/apify-mcpc/
 │               ├── lead-generation.md
 │               ├── market-research.md
 │               ├── trend-analysis.md
-│               └── universal-scraping.md
+│               └── multi-actor-workflows.md
 ├── LICENSE                      # Apache 2.0
 └── README.md
 ```

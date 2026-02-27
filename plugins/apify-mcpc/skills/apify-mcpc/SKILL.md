@@ -1,6 +1,6 @@
 ---
 name: apify-mcpc
-description: "Finds, evaluates, and runs Apify Actors using the mcpc CLI. Searches Apify Store, compares Actors by stats and ratings, reads input schemas to build correct inputs, runs Actors via call-actor, and retrieves results. Covers 9 marketing intelligence use cases (audience analysis, brand monitoring, competitor intelligence, content analytics, influencer discovery, lead generation, market research, trend analysis, universal scraping) with domain-specific Actor suggestions and gotchas. Use when user wants to scrape data, extract information from websites, run automation, find tools on Apify platform, or search Apify/Crawlee documentation. Do NOT use for developing new Actors (use apify-actor-development skill instead)."
+description: "Finds, evaluates, and runs Apify Actors using the mcpc CLI. Searches Apify Store, compares Actors by stats and ratings, reads input schemas to build correct inputs, runs Actors via call-actor, and retrieves results. Covers 8 marketing intelligence use cases (audience analysis, brand monitoring, competitor intelligence, content analytics, influencer discovery, lead generation, market research, trend analysis) plus multi-actor workflow patterns with domain-specific Actor suggestions and gotchas. Use when user wants to scrape data, extract information from websites, run automation, find tools on Apify platform, or search Apify/Crawlee documentation. Do NOT use for developing new Actors (use apify-actor-development skill instead)."
 allowed-tools: Bash(mcpc *), Bash(jq *), Bash(gh issue *), Read, Grep, Glob
 argument-hint: "[use-case or search query]"
 ---
@@ -23,10 +23,10 @@ If it fails:
 
 ## Environment
 
-mcpc version: !`mcpc --version 2>/dev/null || echo "NOT INSTALLED"`
+mcpc version: !`mcpc --version`
 
 Active sessions:
-!`mcpc 2>&1 | grep -E '(@apify|@apify-docs|mcp.apify.com)' || echo "No active sessions"`
+!`mcpc`
 
 ## User-Agent Tracking
 
@@ -62,7 +62,7 @@ When possible, match the user's intent to a use case. Each file has suggested Ac
 | Lead Generation | [lead-generation.md](references/use-cases/lead-generation.md) | B2B/B2C leads, contact enrichment, prospecting |
 | Market Research | [market-research.md](references/use-cases/market-research.md) | Market conditions, pricing, geographic opportunities |
 | Trend Analysis | [trend-analysis.md](references/use-cases/trend-analysis.md) | Emerging trends, viral content, content strategy |
-| Universal Scraping | [universal-scraping.md](references/use-cases/universal-scraping.md) | General-purpose scraping, no specific use case |
+| Multi-Actor Workflows | [multi-actor-workflows.md](references/use-cases/multi-actor-workflows.md) | Chaining Actors, handle discovery via SERP, enrichment |
 
 **Important**: Actor tables in use-case files are **suggestions, not closed lists**. In case of problems use `search-actors` for the latest options.
 

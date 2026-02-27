@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help setup test build dev dev-backend dev-frontend lint run update-skills worktree worktree-remove sync-workspace
+.PHONY: help setup test build dev dev-backend dev-frontend lint run catalog update-skills worktree worktree-remove sync-workspace
 
 # Load port config from .env (with defaults)
 -include .env
@@ -36,6 +36,9 @@ test: ## Run pytest + sim.py dry-run + frontend lint
 	.venv/bin/python sim.py --dry-run
 	cd web && npm run lint
 
+test-plugin: ## Run E2E plugin install/uninstall tests (slow, modifies installed plugins)
+	CLAUDECODE= .venv/bin/python -m pytest plugins/apify-mcpc/tests/ -v
+
 build: ## Build frontend for production
 	cd web && npm run build
 
@@ -64,6 +67,9 @@ lint: ## Run frontend linter
 
 run: ## Run sim.py (e.g. make run ARGS="-s dc-1 -m haiku")
 	.venv/bin/python sim.py $(ARGS)
+
+catalog: ## Run actor_catalog.py (e.g. make catalog ARGS="--profile social-20")
+	python3 actor_catalog.py $(ARGS)
 
 sync-workspace: ## Sync VS Code multi-root workspace file
 	@python3 -c "\
