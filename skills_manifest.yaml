@@ -43,8 +43,3 @@ skills:
   apify-actorization:
     path: skills/skills/apify-actorization/SKILL.md
     category: dev
-
-  # apify-mcpc plugin (centralized mcpc workflow + use-case references)
-  apify-mcpc:
-    path: plugins/apify-mcpc/skills/apify-mcpc/SKILL.md
-    category: mcpc-plugin
